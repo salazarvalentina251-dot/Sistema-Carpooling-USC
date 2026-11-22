@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Carpooling USC | Movilidad que conecta</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
+<body>
+
+    <!-- =====================================
+         ENCABEZADO
+    ====================================== -->
+
+    <header class="header">
+
+        <!-- Contenedor del logo y nombre -->
+        <div class="brand">
+
+            <!-- Logo oficial USC -->
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/logoUsc.png') }}"
+                    alt="Escudo Universidad Santiago de Cali">
+            </div>
+
+            <!-- Nombre de Carpooling USC -->
+            <div class="brand-text">
+                <h2>Carpooling <span>USC</span></h2>
+                <p>MOVILIDAD QUE CONECTA</p>
+            </div>
+
+        </div>
+
+        <!-- Mensaje del encabezado -->
+        <span class="header-message">
+            Exclusivo para la comunidad USC
+        </span>
+
+    </header>
+
+
+    <!-- =====================================
+         CONTENIDO PRINCIPAL
+    ====================================== -->
+
+    <main class="main-container">
+
+        <!-- SECCIÓN DE PRESENTACIÓN -->
+
+        <section class="hero">
+
+            <div class="security-label">
+                <span>♢</span>
+                MOVILIDAD UNIVERSITARIA SEGURA
+            </div>
+
+            <h1>
+                Comparte tu camino,<br>
+                <span>conecta</span> con tu<br>
+                comunidad.
+            </h1>
+
+            <p class="hero-description">
+                Encuentra personas de confianza para ir hacia o desde el campus,
+                comparte los gastos del recorrido y haz más simple cada trayecto.
+            </p>
+
+            <!-- Beneficios de la plataforma -->
+
+            <div class="benefits">
+
+                <div class="benefit">
+                    <span class="benefit-icon">♢</span>
+                    <span>Perfiles verificados</span>
+                </div>
+
+                <div class="benefit">
+                    <span class="benefit-icon">▤</span>
+                    <span>Aportes transparentes</span>
+                </div>
+
+                <div class="benefit">
+                    <span class="benefit-icon">♢</span>
+                    <span>Comunidad USC</span>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- TARJETA DE BIENVENIDA -->
+
+        <section class="welcome-card">
+
+            <span class="card-label">BIENVENIDA</span>
+
+            <h2>Tu próximo viaje comienza aquí.</h2>
+
+            <p>
+                Ingresa con tu correo institucional o crea tu cuenta para empezar.
+            </p>
+
+            <div class="card-buttons">
+
+                <a href="{{ url_for('auth.login') }}" class="btn-primary">
+                    Iniciar sesión
+                </a>
+
+                <a href="{{ url_for('auth.register') }}" class="btn-secondary">
+                    Crear cuenta
+                </a>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>

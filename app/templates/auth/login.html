@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Iniciar sesión | Carpooling USC</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+</head>
+
+<body>
+
+    <!-- =====================================
+         ENCABEZADO
+    ====================================== -->
+
+    <header class="header">
+
+        <div class="brand">
+
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/logoUsc.png') }}"
+                    alt="Escudo Universidad Santiago de Cali">
+            </div>
+
+            <div class="brand-text">
+                <h2>Carpooling <span>USC</span></h2>
+                <p>MOVILIDAD QUE CONECTA</p>
+            </div>
+
+        </div>
+
+        <span class="header-message">
+            Exclusivo para la comunidad USC
+        </span>
+
+    </header>
+
+
+    <!-- =====================================
+         CONTENIDO PRINCIPAL
+    ====================================== -->
+
+    <main class="login-container">
+
+        <!-- SECCIÓN DE PRESENTACIÓN -->
+
+        <section class="hero">
+
+            <div class="security-label">
+                <span>♢</span>
+                MOVILIDAD UNIVERSITARIA SEGURA
+            </div>
+
+            <h1>
+                Comparte tu camino,<br>
+                <span>conecta</span> con tu<br>
+                comunidad.
+            </h1>
+
+            <p class="hero-description">
+                Encuentra personas de confianza para ir hacia o desde el campus,
+                comparte los gastos del recorrido y haz más simple cada trayecto.
+            </p>
+
+            <div class="benefits">
+
+                <div class="benefit">
+                    <span class="benefit-icon">♢</span>
+                    <span>Perfiles verificados</span>
+                </div>
+
+                <div class="benefit">
+                    <span class="benefit-icon">▤</span>
+                    <span>Aportes transparentes</span>
+                </div>
+
+                <div class="benefit">
+                    <span class="benefit-icon">♢</span>
+                    <span>Comunidad USC</span>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- FORMULARIO DE INICIO DE SESIÓN -->
+
+        <section class="login-card">
+
+            <h2>Inicia sesión</h2>
+
+            <p class="login-description">
+                Usa tus credenciales institucionales.
+            </p>
+
+
+            <!-- MENSAJES DEL INICIO DE SESIÓN -->
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+
+            <!-- FORMULARIO -->
+
+            <form action="{{ url_for('auth.login') }}" method="POST">
+
+                <!-- Correo institucional -->
+
+                <div class="form-group">
+
+                    <label for="email">
+                        CORREO INSTITUCIONAL
+                    </label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="nombre@usc.edu.co"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- Contraseña -->
+
+                <div class="form-group">
+
+                    <label for="password">
+                        CONTRASEÑA
+                    </label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="••••••••"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- Recordar sesión y recuperar contraseña -->
+
+                <div class="form-options">
+
+                    <label class="remember-option">
+
+                        <input type="checkbox" name="recordarme">
+
+                        <span>Recordarme</span>
+
+                    </label>
+
+                    <a href="#" class="forgot-password">
+                        ¿Olvidaste tu contraseña?
+                    </a>
+
+                </div>
+
+
+                <!-- Botón de ingreso -->
+
+                <button type="submit" class="btn-login">
+                    Ingresar a Carpooling USC
+                </button>
+
+
+                <!-- Enlace para crear cuenta -->
+
+                <div class="register-link">
+                    ¿No tienes una cuenta?
+                    <a href="{{ url_for('auth.register') }}">Crear cuenta</a>
+                </div>
+
+            </form>
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>
