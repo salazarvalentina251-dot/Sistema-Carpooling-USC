@@ -1,0 +1,68 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="hero-row">
+    <div>
+        <h1 class="display">Buenos días, {{ user.first_name }}.</h1>
+        <p class="muted">¿A dónde te lleva tu camino hoy?</p>
+    </div>
+    <p class="live"><span class="live-dot"></span>Comunidad activa · {{ rutas_hoy }} rutas hoy</p>
+</div>
+
+<form class="search-bar" action="{{ url_for('passenger.buscar') }}" method="get">
+    <label class="field"><small>ORIGEN</small>
+        <input type="text" name="origen" value="Ciudad Jardín, Cali"></label>
+    <label class="field"><small>DESTINO</small>
+        <input type="text" name="destino" value="Universidad Santiago de Cali"></label>
+    <label class="field narrow"><small>FECHA</small>
+        <input type="text" name="fecha" value="Hoy, 14 may."></label>
+    <label class="field narrow"><small>HORA</small>
+        <input type="text" name="hora" value="7:00 a. m."></label>
+    <button type="submit" class="btn-gold">Buscar</button>
+</form>
+
+<div class="home-grid">
+    <section class="map-card">
+        <div class="map-badge">
+            <small>RESULTADOS ENCONTRADOS</small>
+            <p><span class="dot-gold"></span>Ciudad Jardín → USC</p>
+        </div>
+        <svg class="map-svg" viewBox="0 0 740 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <path d="M0 250 C120 220 140 90 260 90 C380 90 400 200 520 150 C620 110 680 60 740 70"
+                  stroke="#2a2c33" stroke-width="34" fill="none"/>
+            <path d="M0 330 C140 300 240 150 360 120 C480 90 560 130 740 40"
+                  stroke="#2a2c33" stroke-width="22" fill="none"/>
+            <path d="M110 270 C200 210 190 140 260 135 C350 130 380 215 470 200 C560 185 600 110 625 85"
+                  stroke="#d4b13a" stroke-width="3" fill="none"/>
+            <circle cx="110" cy="270" r="9" fill="#0f1014" stroke="#fff" stroke-width="3"/>
+            <circle cx="625" cy="85" r="10" fill="#d4b13a" stroke="#0f1014" stroke-width="3"/>
+        </svg>
+        <span class="map-pin">Campus USC</span>
+        <span class="map-note">Mapa de referencia · Sin seguimiento en tiempo real</span>
+    </section>
+
+    <aside class="panel">
+        <div class="panel-head">
+            <h3>Viajes compatibles</h3>
+            <a href="{{ url_for('passenger.buscar') }}" class="link-gold">Ver todos</a>
+        </div>
+        {% for v in viajes %}
+        <article class="trip-card">
+            <div class="trip-top">
+                <span class="avatar {{ v.color }}">{{ v.initials }}</span>
+                <div class="grow">
+                    <strong>{{ v.driver }}</strong>
+                    <small>★ {{ v.rating }} · Verificada</small>
+                </div>
+                <div class="price"><strong>{{ v.price }}</strong><small>aporte</small></div>
+            </div>
+            <div class="trip-body">
+                <p>{{ v.route }}</p>
+                <small>{{ v.time }} · {{ v.seats }}</small>
+            </div>
+        </article>
+        {% endfor %}
+    </aside>
+</div>
+{% endblock %}

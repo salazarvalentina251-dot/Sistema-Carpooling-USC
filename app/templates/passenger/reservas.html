@@ -1,0 +1,42 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Mis reservas{% endblock %}
+
+{% block content %}
+<p class="eyebrow">TUS TRAYECTOS</p>
+<h1 class="display">Mis reservas</h1>
+<p class="muted">Consulta y administra tus solicitudes de viaje.</p>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-filter="proximas">Próximas {{ conteo.proximas }}</button>
+    <button class="tab" data-filter="pendientes">Pendientes {{ conteo.pendientes }}</button>
+    <button class="tab" data-filter="completadas">Completadas {{ conteo.completadas }}</button>
+    <button class="tab" data-filter="canceladas">Canceladas</button>
+</div>
+
+<div class="cards-2">
+    {% for r in reservas %}
+    <article class="card reserva" data-group="{{ r.group }}">
+        <div class="card-row">
+            <span class="badge">{{ r.estado }}</span>
+            <strong class="gold">{{ r.price }}</strong>
+        </div>
+        <h3>{{ r.route }}</h3>
+        <p class="muted small">{{ r.when }} · Con {{ r.driver }}</p>
+        <div class="actions">
+            {% if r.estado == 'ACEPTADA' %}
+                <button class="btn-gold grow">Ver código de abordaje</button>
+                <button class="btn-outline">Detalle</button>
+            {% else %}
+                <button class="btn-outline grow">Ver solicitud</button>
+                <button class="btn-text-danger">Cancelar</button>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+<p class="muted empty" id="empty" hidden>No tienes reservas en esta categoría.</p>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/passenger.js') }}"></script>
+{% endblock %}
