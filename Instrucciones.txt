@@ -1,0 +1,21 @@
+1 En app/models/__init__.py agrega from app.models.carpooling import Trip, Booking, Message. Así db.create_all() crea las tablas nuevas.
+
+2 En layout.html, dentro de <main>, antes del block content, muestra los avisos: "{% for cat, msg in get_flashed_messages(with_categories=true) %}
+<p class="muted" style="color: {{ 'var(--danger)' if cat == 'error' else 'var(--green)' }}">{{ msg }}</p>
+{% endfor %}"
+
+3. En reserva.html, reemplaza los botones de acciones: "{% if r.estado == 'ACEPTADA' %}
+    <button class="btn-gold grow btn-codigo" data-id="{{ r.id }}">Ver código de abordaje</button>
+    <button class="btn-outline">Detalle</button>
+{% endif %}
+{% if r.estado in ('ACEPTADA', 'PENDIENTE') %}
+    <form method="post" action="{{ url_for('passenger.cancelar', booking_id=r.id) }}">
+        <button class="btn-text-danger">Cancelar</button>
+    </form>
+{% endif %}"
+
+4. En mensajes.html:
+Añade data-id="{{ c.id }}" a cada .chat-item.
+Cambia el contenedor a <div class="chat-body" id="chat-body" data-reserva="{{ reserva_activa or '' }}" data-ultimo="{{ mensajes[-1].id if mensajes else 0 }}">.
+Añade id a cada burbuja: <div class="bubble ...">.
+Cambia conversaciones[0].name por {{ conversaciones[0].name if conversaciones else 'Sin conversaciones' }}. Si no, la página falla cuando no hay reservas aceptadas.
