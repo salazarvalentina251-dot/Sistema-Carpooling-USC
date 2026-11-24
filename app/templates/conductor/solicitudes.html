@@ -1,0 +1,85 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+{% from "conductor/_form.html" import csrf %}
+
+{% set active = "solicitudes" %}
+{% set page_title = "Solicitudes" %}
+
+{#
+   Cada tarjeta envía un POST a /conductor/solicitudes/<id>
+   con el campo "accion" = "aceptar" o "rechazar".
+
+   Variables que recibe de la ruta:
+     viaje        -> próximo viaje (o None): origen, destino, salida, disponibles
+     solicitudes  -> lista con: id, pasajero, calificacion, puestos, zona, verificado
+#}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Próximo viaje</span>
+        <h1>Solicitudes de pasajeros</h1>
+        {% if viaje %}
+        <p>{{ viaje.origen }} → {{ viaje.destino }} · {{ viaje.salida | cuando }}</p>
+        {% else %}
+        <p>No tienes un viaje próximo publicado.</p>
+        {% endif %}
+    </div>
+
+    {% if viaje %}
+    <span class="badge">
+        {{ viaje.disponibles }} {{ "puesto libre" if viaje.disponibles == 1 else "puestos libres" }}
+    </span>
+    {% endif %}
+</section>
+
+
+{% if solicitudes %}
+
+<div class="request-cards">
+    {% for s in solicitudes %}
+    {% set sin_cupo = viaje and s.puestos > viaje.disponibles %}
+
+    <article class="request-card">
+
+        <span class="avatar avatar-blue avatar-round avatar-lg">{{ s.pasajero | iniciales }}</span>
+
+        <div class="request-card-info">
+            <strong>
+                {{ s.pasajero }}
+                {% if s.verificado %}
+                <span class="verified-icon" title="Identidad verificada">{{ icon("shield", 14) }}</span>
+                {% endif %}
+            </strong>
+            <small>
+                {{ icon("star", 11) }} {{ "%.1f" | format(s.calificacion) }}
+                · {{ s.puestos }} {{ "puesto" if s.puestos == 1 else "puestos" }}
+                · Recogida en {{ s.zona }}
+                {% if sin_cupo %}· <span class="text-danger">No hay cupo suficiente</span>{% endif %}
+            </small>
+        </div>
+
+        <form class="request-actions" method="post"
+              action="{{ url_for('conductor.responder_solicitud', solicitud_id=s.id) }}">
+            {{ csrf() }}
+            <button type="submit" name="accion" value="rechazar" class="btn-ghost">Rechazar</button>
+            <button type="submit" name="accion" value="aceptar" class="btn-sage"
+                    {% if sin_cupo %}disabled title="Supera los puestos disponibles"{% endif %}>
+                Aceptar
+            </button>
+        </form>
+
+    </article>
+    {% endfor %}
+</div>
+
+{% else %}
+
+<article class="panel empty-state">
+    No tienes solicitudes pendientes. Cuando un pasajero pida un puesto en tu viaje, aparecerá aquí.
+</article>
+
+{% endif %}
+
+{% endblock %}

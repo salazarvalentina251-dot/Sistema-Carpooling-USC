@@ -1,0 +1,209 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+{% from "conductor/_form.html" import csrf %}
+
+{% set active = "publicar" %}
+{% set page_title = "Publicar viaje" %}
+
+{#
+   Formulario de 5 pasos en una sola página.
+   - El JavaScript (static/js/publicar_viaje.js) muestra un paso a la vez.
+   - Datos que recibe el backend (request.form):
+       origen, destino, fecha (AAAA-MM-DD), hora (HH:MM), vehiculo_id, puestos,
+       paradas (varios campos con el mismo nombre), aporte, observaciones
+#}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <h1>Publicar viaje</h1>
+        <p>Completa los datos para compartir tu ruta con la comunidad.</p>
+    </div>
+</section>
+
+{% if errores %}
+<div class="flash-message error form-errors" role="alert">
+    <strong>Revisa los siguientes datos:</strong>
+    <ul>
+        {% for error in errores %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+
+<!-- Indicador de pasos -->
+<ol class="stepper" aria-label="Pasos para publicar el viaje">
+    {% for nombre_paso in ["Ruta", "Vehículo", "Paradas", "Aporte", "Confirmar"] %}
+    <li class="step {% if loop.first %}is-active{% endif %}" data-step-indicator>
+        <span class="step-circle">{{ loop.index }}</span>
+        <span class="step-label">{{ nombre_paso }}</span>
+    </li>
+    {% endfor %}
+</ol>
+
+
+<form id="form-viaje" class="form-card" method="post" action="{{ url_for('conductor.publicar_viaje') }}" novalidate>
+
+    {{ csrf() }}
+
+    <!-- PASO 1: RUTA -->
+    <section class="wizard-step" data-step="1">
+        <h2>¿Cuál es tu ruta?</h2>
+        <p class="hint">El origen o el destino debe ser el Campus USC.</p>
+
+        <div class="field-grid">
+            <div class="field">
+                <label for="origen">Origen</label>
+                <input class="control" type="text" id="origen" name="origen" maxlength="120" required
+                       value="{{ datos.get('origen', '') }}" placeholder="Ej: Ciudad Jardín, Cali">
+            </div>
+
+            <div class="field">
+                <label for="destino">Destino</label>
+                <input class="control" type="text" id="destino" name="destino" maxlength="120" required
+                       value="{{ datos.get('destino', '') }}" placeholder="Ej: Universidad Santiago de Cali">
+            </div>
+
+            <div class="field">
+                <label for="fecha">Fecha</label>
+                <input class="control" type="date" id="fecha" name="fecha" min="{{ hoy }}" required
+                       value="{{ datos.get('fecha', '') }}">
+            </div>
+
+            <div class="field">
+                <label for="hora">Hora de salida</label>
+                <input class="control" type="time" id="hora" name="hora" required
+                       value="{{ datos.get('hora', '') }}">
+            </div>
+        </div>
+    </section>
+
+
+    <!-- PASO 2: VEHÍCULO -->
+    <section class="wizard-step" data-step="2">
+        <h2>¿Con qué vehículo viajas?</h2>
+        <p class="hint">Solo puedes elegir vehículos con SOAT y tecnomecánica vigentes.</p>
+
+        <div class="field-grid">
+            <div class="field">
+                <label for="vehiculo_id">Vehículo</label>
+                <select class="control" id="vehiculo_id" name="vehiculo_id" required>
+                    <option value="">Selecciona un vehículo</option>
+                    {% for v in vehiculos %}
+                    <option value="{{ v.id }}" data-capacidad="{{ v.capacidad }}"
+                            {% if not v.habilitado %}disabled{% endif %}
+                            {% if datos.get('vehiculo_id') == v.id | string %}selected{% endif %}>
+                        {{ v.marca_modelo }} · {{ v.color }} · {{ v.placa_visible }}{% if not v.habilitado %} (documentos vencidos){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="puestos">Puestos disponibles</label>
+                <input class="control" type="number" id="puestos" name="puestos" min="1" max="8" required
+                       value="{{ datos.get('puestos', 1) }}">
+            </div>
+        </div>
+
+        {% if not vehiculos %}
+        <p class="form-note">
+            Aún no tienes vehículos.
+            <a class="link-gold" href="{{ url_for('conductor.vehiculo_nuevo') }}">Registra uno</a>
+            para poder publicar viajes.
+        </p>
+        {% endif %}
+    </section>
+
+
+    <!-- PASO 3: PARADAS -->
+    <section class="wizard-step" data-step="3">
+        <h2>¿Haces paradas en el camino?</h2>
+        <p class="hint">Opcional. Agrega los puntos donde puedes recoger pasajeros (máximo {{ max_paradas }}).</p>
+
+        {% set filas = (paradas | select | list) or [""] %}
+
+        <div class="stop-list" id="lista-paradas" data-max="{{ max_paradas }}">
+            {% for parada in filas %}
+            <div class="stop-row">
+                <input class="control" type="text" name="paradas" maxlength="120" aria-label="Parada"
+                       value="{{ parada }}" placeholder="Ej: Unicentro, Cali">
+                <button type="button" class="icon-btn" data-quitar-parada aria-label="Quitar parada">
+                    {{ icon("x", 16) }}
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" class="btn-ghost btn-small" id="agregar-parada" hidden>
+            {{ icon("plus", 16) }} Agregar parada
+        </button>
+
+        <template id="plantilla-parada">
+            <div class="stop-row">
+                <input class="control" type="text" name="paradas" maxlength="120" aria-label="Parada"
+                       placeholder="Ej: Unicentro, Cali">
+                <button type="button" class="icon-btn" data-quitar-parada aria-label="Quitar parada">
+                    {{ icon("x", 16) }}
+                </button>
+            </div>
+        </template>
+    </section>
+
+
+    <!-- PASO 4: APORTE -->
+    <section class="wizard-step" data-step="4">
+        <h2>¿Cuánto aportará cada pasajero?</h2>
+        <p class="hint">Define el aporte por pasajero para compartir los gastos del recorrido.</p>
+
+        <div class="field-grid">
+            <div class="field">
+                <label for="aporte">Aporte por pasajero (COP)</label>
+                <input class="control" type="number" id="aporte" name="aporte" min="0" max="{{ aporte_maximo }}"
+                       step="500" required value="{{ datos.get('aporte', 5500) }}">
+            </div>
+
+            <div class="field field-full">
+                <label for="observaciones">Notas para los pasajeros (opcional)</label>
+                <textarea class="control" id="observaciones" name="observaciones" rows="3" maxlength="300"
+                          placeholder="Ej: Salgo puntual desde la portería principal.">{{ datos.get('observaciones', '') }}</textarea>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- PASO 5: CONFIRMAR -->
+    <section class="wizard-step" data-step="5">
+        <h2>Confirma tu viaje</h2>
+        <p class="hint">Revisa los datos antes de publicar.</p>
+
+        <dl class="summary">
+            <div><dt>Ruta</dt><dd data-resumen="ruta"></dd></div>
+            <div><dt>Salida</dt><dd data-resumen="salida"></dd></div>
+            <div><dt>Vehículo</dt><dd data-resumen="vehiculo"></dd></div>
+            <div><dt>Puestos</dt><dd data-resumen="puestos"></dd></div>
+            <div><dt>Paradas</dt><dd data-resumen="paradas"></dd></div>
+            <div><dt>Aporte por pasajero</dt><dd data-resumen="aporte"></dd></div>
+            <div><dt>Notas</dt><dd data-resumen="observaciones"></dd></div>
+        </dl>
+    </section>
+
+
+    <!-- Botones -->
+    <div class="form-actions">
+        <button type="button" class="btn-ghost" data-prev hidden>Anterior</button>
+        <button type="button" class="btn-gold" data-next hidden>Continuar</button>
+        <button type="submit" class="btn-gold" data-submit>Publicar viaje</button>
+    </div>
+
+</form>
+
+{% endblock %}
+
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/publicar_viaje.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{#
+   Plantilla base del panel del CONDUCTOR (barra lateral + encabezado).
+   Las demás páginas la extienden:
+
+     {% extends "conductor/layout.html" %}
+     {% set active = "publicar" %}            <- opción activa del menú
+     {% set page_title = "Publicar viaje" %}  <- texto del encabezado
+     {% block content %} ... {% endblock %}
+#}
+{% from "conductor/_icons.html" import icon %}
+{% from "conductor/_form.html" import csrf %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ page_title | default("Inicio") }} | Carpooling USC</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+
+<body>
+
+{% set menu = [
+    ("inicio",      "Inicio",         "home",    url_for("conductor.inicio")),
+    ("publicar",    "Publicar viaje", "plus",    url_for("conductor.publicar_viaje")),
+    ("vehiculos",   "Mis vehículos",  "car",     url_for("conductor.vehiculos")),
+    ("solicitudes", "Solicitudes",    "users",   url_for("conductor.solicitudes")),
+    ("historial",   "Historial",      "history", url_for("conductor.historial")),
+    ("mensajes",    "Mensajes",       "message", url_for("conductor.mensajes")),
+] %}
+
+<div class="app-shell">
+
+    <!-- BARRA LATERAL -->
+    <aside class="sidebar">
+
+        <a class="brand" href="{{ url_for('conductor.inicio') }}">
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/logoUsc.png') }}"
+                     alt="Escudo Universidad Santiago de Cali">
+            </div>
+
+            <div class="brand-text">
+                <h2>Carpooling <span>USC</span></h2>
+                <p>MOVILIDAD QUE CONECTA</p>
+            </div>
+        </a>
+
+        <nav class="nav" aria-label="Navegación del conductor">
+
+            <span class="nav-title">NAVEGACIÓN</span>
+
+            {% for clave, texto, nombre_icono, enlace in menu %}
+            <a href="{{ enlace }}"
+               class="nav-link {% if active | default('inicio') == clave %}is-active{% endif %}"
+               {% if active | default('inicio') == clave %}aria-current="page"{% endif %}>
+                {{ icon(nombre_icono, 18) }}
+                <span>{{ texto }}</span>
+
+                {% if clave == "solicitudes" and solicitudes_pendientes %}
+                <span class="nav-badge">{{ solicitudes_pendientes }}</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+
+        </nav>
+
+        <div class="sidebar-footer">
+
+            <div class="verified-card">
+                <strong>{{ icon("shield", 15) }} Identidad verificada</strong>
+                <p>Tu cuenta cumple con los requisitos de la comunidad USC.</p>
+            </div>
+
+            <form action="{{ url_for('conductor.cerrar_sesion') }}" method="post">
+                {{ csrf() }}
+                <button type="submit" class="logout-btn">
+                    {{ icon("logout", 18) }}
+                    <span>Cerrar sesión</span>
+                </button>
+            </form>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ÁREA PRINCIPAL -->
+    <div class="content-area">
+
+        <header class="topbar">
+
+            <div class="topbar-title">
+                <span>{{ usuario.rol | upper }}</span>
+                <strong>{{ page_title | default("Inicio") }}</strong>
+            </div>
+
+            <div class="topbar-actions">
+
+                <button type="button" class="icon-btn" aria-label="Notificaciones">
+                    {{ icon("bell", 18) }}
+                    <span class="notification-dot"></span>
+                </button>
+
+                <!-- Selector de perfil (lista desplegable) -->
+                <details class="role-menu">
+
+                    <summary class="user-chip" aria-label="Cambiar de perfil">
+                        <span class="avatar avatar-blue">{{ usuario.iniciales }}</span>
+                        <span class="user-chip-text">
+                            <strong>{{ usuario.nombre }}</strong>
+                            <small>{{ usuario.rol }}</small>
+                        </span>
+                        <span class="chevron">{{ icon("chevron-down", 15) }}</span>
+                    </summary>
+
+                    <form class="role-menu-list" action="{{ url_for('conductor.cambiar_perfil') }}" method="post">
+                        {{ csrf() }}
+                        <span class="role-menu-title">CAMBIAR PERFIL</span>
+
+                        {% for clave, etiqueta in roles %}
+                        <button type="submit" name="rol" value="{{ clave }}"
+                                class="role-option {% if clave == rol_actual %}is-current{% endif %}">
+                            {{ etiqueta }}
+                        </button>
+                        {% endfor %}
+                    </form>
+
+                </details>
+
+            </div>
+
+        </header>
+
+        <main class="page">
+
+            {% with mensajes_flash = get_flashed_messages(with_categories=true) %}
+                {% for categoria, mensaje in mensajes_flash %}
+                <div class="flash-message {{ categoria }}">{{ mensaje }}</div>
+                {% endfor %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+
+</html>
+</body>
+
+</html>

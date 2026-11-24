@@ -1,0 +1,59 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+
+{% set active = "vehiculos" %}
+{% set page_title = "Mis vehículos" %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Movilidad</span>
+        <h1>Mis vehículos</h1>
+        <p>Gestiona los vehículos y su documentación.</p>
+    </div>
+
+    <a href="{{ url_for('conductor.vehiculo_nuevo') }}" class="btn-gold">
+        {{ icon("plus", 18) }} Registrar vehículo
+    </a>
+</section>
+
+{% if vehiculos %}
+<section class="vehicle-grid">
+    {% for v in vehiculos %}
+    <article class="panel">
+
+        <div class="vehicle-top">
+            <span class="trip-icon">{{ icon("car", 26) }}</span>
+
+            <div class="vehicle-info">
+                <h3>{{ v.marca_modelo }} · {{ v.color }}</h3>
+                <p>{{ v.placa_visible }} · {{ v.capacidad }} pasajeros</p>
+            </div>
+
+            {% if v.habilitado %}
+            <span class="badge">Habilitado</span>
+            {% else %}
+            <span class="badge badge-danger">Documentos vencidos</span>
+            {% endif %}
+        </div>
+
+        <div class="doc-grid">
+            <div class="doc-tile {% if v.soat_vencido %}is-expired{% endif %}">
+                <small>SOAT</small>
+                <strong>{{ "Venció" if v.soat_vencido else "Vence" }} {{ v.soat_vence.strftime("%m/%Y") }}</strong>
+            </div>
+            <div class="doc-tile {% if v.tecnomecanica_vencida %}is-expired{% endif %}">
+                <small>Tecnomecánica</small>
+                <strong>{{ "Venció" if v.tecnomecanica_vencida else "Vence" }} {{ v.tecnomecanica_vence.strftime("%m/%Y") }}</strong>
+            </div>
+        </div>
+
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<article class="panel empty-state">Aún no has registrado vehículos.</article>
+{% endif %}
+
+{% endblock %}
