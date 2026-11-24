@@ -1,0 +1,61 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+{% from "conductor/_form.html" import csrf %}
+
+{% set active = "mensajes" %}
+{% set page_title = "Mensajes" %}
+
+{% block content %}
+
+<section class="chat">
+
+    <aside class="chat-list">
+        <span class="chat-list-title">CONVERSACIONES ACTIVAS</span>
+
+        {% for c in conversaciones %}
+        <a href="{{ url_for('conductor.mensajes', con=c.id) }}"
+           class="chat-item {% if activa and c.id == activa.id %}is-active{% endif %}">
+            <span class="avatar avatar-blue avatar-round avatar-lg">{{ c.nombre | iniciales }}</span>
+            <span class="chat-item-text">
+                <strong>{{ c.nombre }}</strong>
+                <small>{{ c.ultimo }}</small>
+            </span>
+        </a>
+        {% else %}
+        <p class="empty-state">Aún no tienes conversaciones.</p>
+        {% endfor %}
+    </aside>
+
+    <div class="chat-window">
+
+        {% if activa %}
+
+        <header class="chat-header">
+            <strong>{{ activa.nombre }}</strong>
+            {% if activa.en_linea %}<span class="online">En línea</span>{% endif %}
+        </header>
+
+        <div class="chat-messages" data-chat-messages>
+            {% for m in activa.mensajes %}
+            <div class="bubble {% if m.propio %}is-own{% endif %}">{{ m.texto }}</div>
+            {% endfor %}
+        </div>
+
+        {# POST /conductor/mensajes/enviar con: conversacion_id y texto #}
+        <form class="chat-form" method="post" action="{{ url_for('conductor.enviar_mensaje') }}">
+            {{ csrf() }}
+            <input type="hidden" name="conversacion_id" value="{{ activa.id }}">
+            <input class="control" type="text" name="texto" maxlength="500"
+                   placeholder="Escribe un mensaje..." autocomplete="off" required>
+            <button type="submit" class="btn-send" aria-label="Enviar">{{ icon("arrow-right", 18) }}</button>
+        </form>
+
+        {% else %}
+        <p class="empty-state">Selecciona una conversación.</p>
+        {% endif %}
+
+    </div>
+
+</section>
+
+{% endblock %}

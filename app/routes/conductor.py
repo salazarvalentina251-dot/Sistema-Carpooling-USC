@@ -1,0 +1,453 @@
+from datetime import date, datetime, timedelta
+
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    session,
+    redirect,
+    url_for,
+    flash,
+)
+
+
+# Blueprint del panel del conductor. Todas sus rutas empiezan por /conductor
+conductor_bp = Blueprint("conductor", __name__, url_prefix="/conductor")
+
+
+# =========================================
+# PERFILES (ROLES)
+# =========================================
+
+ROLES = [
+    ("pasajero", "Pasajero"),
+    ("conductor", "Conductor"),
+    ("administrador", "Administrador"),
+]
+
+# Perfiles que ya tienen pantallas hechas.
+# TODO (frontend): agregar "pasajero" y "administrador" cuando existan.
+ROLES_CON_PANTALLAS = {"conductor"}
+
+MAX_PARADAS = 4
+APORTE_MAXIMO = 50000
+
+
+# =========================================
+# FILTROS PARA LAS PLANTILLAS
+# =========================================
+
+@conductor_bp.app_template_filter("pesos")
+def filtro_pesos(valor):
+    """5500 -> $5.500"""
+    return "$" + "{:,.0f}".format(valor).replace(",", ".")
+
+
+@conductor_bp.app_template_filter("iniciales")
+def filtro_iniciales(nombre):
+    """'Sofía Ortiz' -> 'SO'"""
+    partes = (nombre or "").split()
+    if not partes:
+        return "?"
+    if len(partes) == 1:
+        return partes[0][:2].upper()
+    return (partes[0][0] + partes[1][0]).upper()
+
+
+@conductor_bp.app_template_filter("cuando")
+def filtro_cuando(momento):
+    """datetime -> 'Hoy · 7:10 a. m.' / 'Mañana · ...' / '24 nov. · ...'"""
+    meses = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.",
+             "jul.", "ago.", "sep.", "oct.", "nov.", "dic."]
+    hora = momento.hour % 12 or 12
+    sufijo = "a. m." if momento.hour < 12 else "p. m."
+    texto_hora = f"{hora}:{momento.minute:02d} {sufijo}"
+
+    dia = momento.date()
+    if dia == date.today():
+        return f"Hoy · {texto_hora}"
+    if dia == date.today() + timedelta(days=1):
+        return f"Mañana · {texto_hora}"
+    return f"{dia.day} {meses[dia.month - 1]} · {texto_hora}"
+
+
+# =========================================
+# FUNCIONES AUXILIARES
+# =========================================
+
+def requiere_sesion():
+    """Redirige al login si no hay sesión iniciada; si la hay, devuelve None."""
+    if "user_id" not in session:
+        flash("Inicia sesión para continuar.", "error")
+        return redirect(url_for("auth.login"))
+    return None
+
+
+def fecha_valida(texto):
+    try:
+        return datetime.strptime(texto, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+# =========================================================
+# CONSULTAS DE DATOS
+# ---------------------------------------------------------
+# Hoy devuelven datos de EJEMPLO. TODO (backend): reemplazar
+# el contenido de cada función por consultas reales a la base
+# de datos (app/repositories). Las plantillas solo usan los
+# campos que aparecen aquí: basta con respetar los nombres.
+# =========================================================
+
+def consultar_vehiculos():
+    hoy = date.today()
+    vehiculos = [
+        {
+            "id": 1,
+            "marca_modelo": "Mazda 3",
+            "color": "Gris",
+            "placa_visible": "KLM 248",
+            "capacidad": 4,
+            "soat_vence": hoy + timedelta(days=400),
+            "tecnomecanica_vence": hoy + timedelta(days=250),
+        },
+    ]
+    for v in vehiculos:
+        v["soat_vencido"] = v["soat_vence"] < hoy
+        v["tecnomecanica_vencida"] = v["tecnomecanica_vence"] < hoy
+        v["habilitado"] = not (v["soat_vencido"] or v["tecnomecanica_vencida"])
+    return vehiculos
+
+
+def consultar_solicitudes_pendientes():
+    return [
+        {"id": 1, "pasajero": "Valentina Rojas", "calificacion": 4.9, "puestos": 1, "zona": "Ciudad Jardín", "verificado": True},
+        {"id": 2, "pasajero": "Nicolás Mora", "calificacion": 4.9, "puestos": 2, "zona": "Ciudad Jardín", "verificado": True},
+        {"id": 3, "pasajero": "Camila Torres", "calificacion": 4.7, "puestos": 3, "zona": "Ciudad Jardín", "verificado": False},
+    ]
+
+
+def consultar_proximo_viaje():
+    """Devuelve el próximo viaje del conductor o None si no tiene."""
+    salida = datetime.combine(date.today(), datetime.min.time()).replace(hour=7, minute=10)
+    return {
+        "estado": "Abierto",
+        "origen": "Ciudad Jardín",
+        "destino": "Campus USC",
+        "salida": salida,
+        "vehiculo": "Mazda 3 gris",
+        "placa": "KLM 248",
+        "confirmados": 2,
+        "disponibles": 2,
+        "aporte": 5500,
+    }
+
+
+def consultar_historial():
+    return [
+        {"origen": "Campus USC", "destino": "Ciudad Jardín", "fecha": "10 may.", "pasajero": "Laura Mejía", "aporte": 5500, "calificacion": 5.0, "estado": "Completado"},
+        {"origen": "Valle del Lili", "destino": "Campus USC", "fecha": "8 may.", "pasajero": "Carlos Restrepo", "aporte": 4800, "calificacion": 4.8, "estado": "Completado"},
+        {"origen": "Campus USC", "destino": "San Fernando", "fecha": "3 may.", "pasajero": "Ana Lucía Pérez", "aporte": 4200, "calificacion": 5.0, "estado": "Completado"},
+    ]
+
+
+def consultar_conversaciones():
+    conversaciones = [
+        {
+            "id": 1, "nombre": "Laura Mejía", "en_linea": True,
+            "mensajes": [
+                {"propio": False, "texto": "Hola Sofía, te recojo en la entrada de Ciudad Jardín."},
+                {"propio": True, "texto": "Perfecto, estaré allí a las 7:05. Gracias."},
+            ],
+        },
+        {
+            "id": 2, "nombre": "Diego Arango", "en_linea": False,
+            "mensajes": [
+                {"propio": True, "texto": "Listo, quedamos para mañana."},
+                {"propio": False, "texto": "Gracias, nos vemos mañana"},
+            ],
+        },
+    ]
+    for c in conversaciones:
+        c["ultimo"] = c["mensajes"][-1]["texto"]
+    return conversaciones
+
+
+# =========================================
+# DATOS PARA TODAS LAS PÁGINAS DEL CONDUCTOR
+# =========================================
+
+@conductor_bp.context_processor
+def datos_comunes():
+    nombre = session.get("user_name", "Conductor")
+
+    # TODO (backend): leer el último rol usado desde el modelo User
+    rol_actual = session.get("rol", "conductor")
+
+    return {
+        "usuario": {
+            "nombre": nombre,
+            "iniciales": filtro_iniciales(nombre),
+            "rol": dict(ROLES).get(rol_actual, "Conductor"),
+        },
+        "roles": ROLES,
+        "rol_actual": rol_actual,
+        "solicitudes_pendientes": len(consultar_solicitudes_pendientes()),
+    }
+
+
+# =========================================
+# CAMBIAR DE PERFIL
+# =========================================
+
+@conductor_bp.route("/cambiar-perfil", methods=["POST"])
+def cambiar_perfil():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    rol = request.form.get("rol", "")
+
+    if rol not in dict(ROLES):
+        flash("Perfil no válido.", "error")
+    elif rol not in ROLES_CON_PANTALLAS:
+        flash(f"La vista de {dict(ROLES)[rol].lower()} estará disponible pronto.", "info")
+    else:
+        # TODO (backend): guardar el rol como "último rol usado" en User
+        session["rol"] = rol
+
+    return redirect(url_for("conductor.inicio"))
+
+
+# =========================================
+# INICIO
+# =========================================
+
+@conductor_bp.route("/inicio")
+def inicio():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    solicitudes = consultar_solicitudes_pendientes()
+
+    # TODO (backend): calcular estas cifras con consultas reales
+    estadisticas = {
+        "viajes_publicados": 12,
+        "viajes_este_mes": 2,
+        "solicitudes_pendientes": len(solicitudes),
+        "puestos_disponibles": 5,
+        "proximos_viajes": 2,
+        "calificacion": 4.9,
+        "opiniones": 36,
+    }
+
+    return render_template(
+        "conductor/inicio.html",
+        estadisticas=estadisticas,
+        proximo_viaje=consultar_proximo_viaje(),
+        solicitudes_recientes=solicitudes[:3],
+    )
+
+
+# =========================================
+# PUBLICAR VIAJE
+# =========================================
+
+@conductor_bp.route("/publicar", methods=["GET", "POST"])
+def publicar_viaje():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    vehiculos = consultar_vehiculos()
+    datos, errores = {}, []
+
+    if request.method == "POST":
+        datos = request.form.to_dict()
+        paradas = [p.strip() for p in request.form.getlist("paradas") if p.strip()]
+        datos["paradas"] = paradas
+
+        origen = datos.get("origen", "").strip()
+        destino = datos.get("destino", "").strip()
+        texto_ruta = (origen + " " + destino).lower()
+
+        if not origen or not destino:
+            errores.append("Indica el origen y el destino.")
+        elif not any(p in texto_ruta for p in ("usc", "campus", "santiago de cali")):
+            errores.append("El origen o el destino debe ser el Campus USC.")
+
+        fecha = fecha_valida(datos.get("fecha"))
+        if not fecha or fecha < date.today():
+            errores.append("Elige una fecha válida (hoy o posterior).")
+        if not datos.get("hora"):
+            errores.append("Indica la hora de salida.")
+
+        vehiculo = next((v for v in vehiculos if str(v["id"]) == datos.get("vehiculo_id")), None)
+        if not vehiculo:
+            errores.append("Selecciona un vehículo.")
+        elif not vehiculo["habilitado"]:
+            errores.append("Ese vehículo tiene documentos vencidos.")
+
+        puestos = datos.get("puestos", "")
+        if not puestos.isdigit() or int(puestos) < 1 or (vehiculo and int(puestos) > vehiculo["capacidad"]):
+            errores.append("Los puestos deben estar entre 1 y la capacidad del vehículo.")
+
+        if len(paradas) > MAX_PARADAS:
+            errores.append(f"Máximo {MAX_PARADAS} paradas.")
+
+        aporte = datos.get("aporte", "")
+        if not aporte.isdigit() or int(aporte) > APORTE_MAXIMO:
+            errores.append(f"El aporte debe ser un valor entre 0 y {APORTE_MAXIMO}.")
+
+        if not errores:
+            # TODO (backend): guardar el viaje y sus paradas en la base de datos
+            flash("¡Tu viaje fue publicado correctamente!", "success")
+            return redirect(url_for("conductor.inicio"))
+
+    return render_template(
+        "conductor/publicar.html",
+        vehiculos=vehiculos,
+        datos=datos,
+        errores=errores,
+        paradas=datos.get("paradas", []),
+        hoy=date.today().isoformat(),
+        max_paradas=MAX_PARADAS,
+        aporte_maximo=APORTE_MAXIMO,
+    )
+
+
+# =========================================
+# MIS VEHÍCULOS
+# =========================================
+
+@conductor_bp.route("/vehiculos")
+def vehiculos():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    return render_template("conductor/vehiculos.html", vehiculos=consultar_vehiculos())
+
+
+@conductor_bp.route("/vehiculos/nuevo", methods=["GET", "POST"])
+def vehiculo_nuevo():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    datos, errores = {}, []
+
+    if request.method == "POST":
+        datos = request.form.to_dict()
+
+        for campo in ("marca_modelo", "color", "placa", "capacidad", "soat_vence", "tecnomecanica_vence"):
+            if not datos.get(campo, "").strip():
+                errores.append("Completa todos los campos.")
+                break
+
+        if not errores:
+            if not fecha_valida(datos["soat_vence"]) or not fecha_valida(datos["tecnomecanica_vence"]):
+                errores.append("Las fechas de vencimiento no son válidas.")
+            if not datos["capacidad"].isdigit() or not 1 <= int(datos["capacidad"]) <= 8:
+                errores.append("La capacidad debe estar entre 1 y 8 pasajeros.")
+
+        if not errores:
+            # TODO (backend): guardar el vehículo asociado al usuario en sesión
+            flash("Vehículo registrado correctamente.", "success")
+            return redirect(url_for("conductor.vehiculos"))
+
+    return render_template("conductor/vehiculo_nuevo.html", datos=datos, errores=errores)
+
+
+# =========================================
+# SOLICITUDES DE PASAJEROS
+# =========================================
+
+@conductor_bp.route("/solicitudes")
+def solicitudes():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    return render_template(
+        "conductor/solicitudes.html",
+        solicitudes=consultar_solicitudes_pendientes(),
+        viaje=consultar_proximo_viaje(),
+    )
+
+
+@conductor_bp.route("/solicitudes/<int:solicitud_id>", methods=["POST"])
+def responder_solicitud(solicitud_id):
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    accion = request.form.get("accion")
+
+    if accion not in ("aceptar", "rechazar"):
+        flash("Acción no válida.", "error")
+        return redirect(url_for("conductor.solicitudes"))
+
+    # TODO (backend): actualizar el estado de la solicitud (y los puestos
+    # disponibles del viaje si se acepta) en la base de datos.
+    flash("Solicitud aceptada." if accion == "aceptar" else "Solicitud rechazada.", "success")
+    return redirect(url_for("conductor.solicitudes"))
+
+
+# =========================================
+# HISTORIAL
+# =========================================
+
+@conductor_bp.route("/historial")
+def historial():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    return render_template("conductor/historial.html", viajes=consultar_historial())
+
+
+# =========================================
+# MENSAJES
+# =========================================
+
+@conductor_bp.route("/mensajes")
+def mensajes():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    conversaciones = consultar_conversaciones()
+    seleccionada = request.args.get("con", type=int)
+    activa = next((c for c in conversaciones if c["id"] == seleccionada), None)
+    if activa is None and conversaciones:
+        activa = conversaciones[0]
+
+    return render_template("conductor/mensajes.html", conversaciones=conversaciones, activa=activa)
+
+
+@conductor_bp.route("/mensajes/enviar", methods=["POST"])
+def enviar_mensaje():
+    redireccion = requiere_sesion()
+    if redireccion:
+        return redireccion
+
+    conversacion_id = request.form.get("conversacion_id", type=int)
+
+    # TODO (backend): guardar el mensaje en la base de datos
+    if not request.form.get("texto", "").strip():
+        flash("Escribe un mensaje antes de enviarlo.", "error")
+
+    return redirect(url_for("conductor.mensajes", con=conversacion_id))
+
+
+# =========================================
+# CERRAR SESIÓN
+# =========================================
+
+@conductor_bp.route("/cerrar-sesion", methods=["POST"])
+def cerrar_sesion():
+    session.clear()
+    flash("Has cerrado sesión.", "success")
+    return redirect(url_for("auth.login"))

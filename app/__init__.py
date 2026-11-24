@@ -20,9 +20,11 @@ def create_app():
 
     # Importar rutas
     from app.routes.auth import auth_bp
+    from app.routes.conductor import conductor_bp
 
     # Registrar Blueprint
     app.register_blueprint(auth_bp)
+    app.register_blueprint(conductor_bp)  
 
     # Crear tablas
     with app.app_context():
@@ -32,5 +34,7 @@ def create_app():
     @app.route("/")
     def home():
         return render_template("home.html")
+    from app.routes.passenger import passenger_bp
+    app.register_blueprint(passenger_bp)
 
     return app

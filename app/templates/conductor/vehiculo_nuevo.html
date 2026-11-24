@@ -1,0 +1,90 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+{% from "conductor/_form.html" import csrf %}
+
+{% set active = "vehiculos" %}
+{% set page_title = "Registrar vehículo" %}
+
+{#
+   Datos que recibe el backend (request.form):
+     marca_modelo, color, placa, capacidad,
+     soat_vence (AAAA-MM-DD), tecnomecanica_vence (AAAA-MM-DD)
+#}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Movilidad</span>
+        <h1>Registrar vehículo</h1>
+        <p>Agrega los datos y la documentación de tu vehículo.</p>
+    </div>
+</section>
+
+{% if errores %}
+<div class="flash-message error form-errors" role="alert">
+    <strong>Revisa los siguientes datos:</strong>
+    <ul>
+        {% for error in errores %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form class="form-card" method="post" action="{{ url_for('conductor.vehiculo_nuevo') }}">
+
+    {{ csrf() }}
+
+    <h2>Datos del vehículo</h2>
+    <p class="hint">Necesitamos el SOAT y la tecnomecánica para habilitarlo en los viajes.</p>
+
+    <div class="field-grid">
+
+        <div class="field">
+            <label for="marca_modelo">Marca y modelo</label>
+            <input class="control" type="text" id="marca_modelo" name="marca_modelo" maxlength="40" required
+                   value="{{ datos.get('marca_modelo', '') }}" placeholder="Ej: Mazda 3">
+        </div>
+
+        <div class="field">
+            <label for="color">Color</label>
+            <input class="control" type="text" id="color" name="color" maxlength="30" required
+                   value="{{ datos.get('color', '') }}" placeholder="Ej: Gris">
+        </div>
+
+        <div class="field">
+            <label for="placa">Placa</label>
+            <input class="control control-upper" type="text" id="placa" name="placa" maxlength="7" required
+                   pattern="[A-Za-z]{3}[\s\-]?[0-9]{3}" title="3 letras y 3 números. Ejemplo: KLM 248"
+                   value="{{ datos.get('placa', '') }}" placeholder="Ej: KLM 248">
+        </div>
+
+        <div class="field">
+            <label for="capacidad">Pasajeros que puede llevar</label>
+            <input class="control" type="number" id="capacidad" name="capacidad" min="1" max="8" required
+                   value="{{ datos.get('capacidad', 4) }}">
+        </div>
+
+        <div class="field">
+            <label for="soat_vence">Vencimiento del SOAT</label>
+            <input class="control" type="date" id="soat_vence" name="soat_vence" required
+                   value="{{ datos.get('soat_vence', '') }}">
+        </div>
+
+        <div class="field">
+            <label for="tecnomecanica_vence">Vencimiento de la tecnomecánica</label>
+            <input class="control" type="date" id="tecnomecanica_vence" name="tecnomecanica_vence" required
+                   value="{{ datos.get('tecnomecanica_vence', '') }}">
+        </div>
+
+    </div>
+
+    <div class="form-actions">
+        <a class="btn-ghost" href="{{ url_for('conductor.vehiculos') }}">Cancelar</a>
+        <button type="submit" class="btn-gold">Registrar vehículo</button>
+    </div>
+
+</form>
+
+{% endblock %}

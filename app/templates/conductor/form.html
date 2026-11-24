@@ -1,0 +1,16 @@
+{#
+   Utilidades para formularios.
+
+   csrf(): agrega el campo oculto del token CSRF SOLO si el proyecto activa
+   la protección (Flask-WTF: CSRFProtect(app)). Si no está activa, no pinta
+   nada. Debe ir dentro de TODOS los <form method="post">.
+
+   Uso:
+     {% from "conductor/_form.html" import csrf %}
+     <form method="post"> {{ csrf() }} ... </form>
+#}
+{% macro csrf() -%}
+{%- if csrf_token is defined -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endif -%}
+{%- endmacro %}

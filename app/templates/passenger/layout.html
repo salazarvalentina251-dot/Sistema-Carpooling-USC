@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pasajero{% endblock %} | Carpooling USC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/passenger.css') }}">
+</head>
+<body>
+<div class="app">
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-logo">
+                <img src="{{ url_for('static', filename='images/logoUsc.png') }}" alt="Escudo USC">
+            </div>
+            <div>
+                <h2>Carpooling <span>USC</span></h2>
+                <p>MOVILIDAD QUE CONECTA</p>
+            </div>
+        </div>
+
+        <nav class="nav" aria-label="Navegación del pasajero">
+            <p class="nav-title">NAVEGACIÓN</p>
+            {% set items = [
+                ('inicio', 'Inicio', 'passenger.inicio'),
+                ('buscar', 'Buscar viajes', 'passenger.buscar'),
+                ('reservas', 'Mis reservas', 'passenger.reservas'),
+                ('historial', 'Historial', 'passenger.historial'),
+                ('mensajes', 'Mensajes', 'passenger.mensajes')
+            ] %}
+            {% for key, label, endpoint in items %}
+            <a href="{{ url_for(endpoint) }}" class="nav-link {% if active == key %}active{% endif %}">
+                <span class="nav-icon">{% include 'passenger/icons/' ~ key ~ '.svg' %}</span>{{ label }}
+            </a>
+            {% endfor %}
+        </nav>
+
+        <div class="verified-card">
+            <strong>Identidad verificada</strong>
+            <p>Tu cuenta cumple con los requisitos de la comunidad USC.</p>
+        </div>
+
+        {# Cambia 'auth.login' por la ruta de logout cuando exista #}
+        <a href="{{ url_for('auth.login') }}" class="logout">Cerrar sesión</a>
+    </aside>
+
+    <div class="content">
+        <header class="topbar">
+            <div>
+                <p class="crumb">PASAJERO</p>
+                <p class="crumb-page">{{ page_title }}</p>
+            </div>
+            <div class="topbar-right">
+                <button class="bell" aria-label="Notificaciones"><span class="dot"></span>🔔</button>
+                <div class="user-chip">
+                    <span class="avatar blue">{{ user.initials }}</span>
+                    <div>
+                        <strong>{{ user.name }}</strong>
+                        <small>Pasajera</small>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="page">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
