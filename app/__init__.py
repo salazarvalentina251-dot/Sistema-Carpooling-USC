@@ -34,5 +34,7 @@ def create_app():
     @app.route("/")
     def home():
         return render_template("home.html")
+    from app.routes.passenger import passenger_bp
+    app.register_blueprint(passenger_bp)
 
     return app

@@ -1,0 +1,11 @@
+En app/__init__.py, donde tu compañera registra el blueprint de auth, agrega estas dos líneas
+(imitando exactamente cómo lo hace ella):
+
+    from app.routes.passenger import passenger_bp
+    app.register_blueprint(passenger_bp)
+
+Luego ejecuta `python run.py` y abre:
+    http://127.0.0.1:5000/pasajero/inicio
+    http://127.0.0.1:5000/pasajero/reservas
+    http://127.0.0.1:5000/pasajero/historial
+    http://127.0.0.1:5000/pasajero/mensajes

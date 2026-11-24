@@ -1,0 +1,26 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Historial{% endblock %}
+
+{% block content %}
+<p class="eyebrow">ACTIVIDAD</p>
+<h1 class="display">Historial de viajes</h1>
+<p class="muted">Tus recorridos completados con la comunidad USC.</p>
+
+<div class="history-list">
+    {% for h in historial %}
+    <article class="history-item">
+        <span class="history-icon">{% include 'passenger/icons/historial.svg' %}</span>
+        <div class="grow">
+            <strong>{{ h.route }}</strong>
+            <small>{{ h.date }} · {{ h.driver }}</small>
+        </div>
+        <div class="history-right">
+            <strong class="gold">{{ h.price }}</strong>
+            <small>☆ {{ h.rating }} · Completada</small>
+        </div>
+    </article>
+    {% else %}
+    <p class="muted">Aún no has completado viajes. Busca uno para empezar.</p>
+    {% endfor %}
+</div>
+{% endblock %}
