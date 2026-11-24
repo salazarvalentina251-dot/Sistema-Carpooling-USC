@@ -423,7 +423,8 @@ def publicar_viaje():
                     int(puestos),
                     int(aporte),
                     vehiculo["id"],
-                    paradas
+                    paradas,
+                    datos.get("observaciones", "")
                 )
 
             except ValueError as error:

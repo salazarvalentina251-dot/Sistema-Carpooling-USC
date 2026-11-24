@@ -78,9 +78,25 @@ class TripDetails(db.Model):
     )
 
 
+class TripNote(db.Model):
+    _tablename_ = "conductor_trip_notes"
+
+    trip_id = db.Column(
+        db.Integer,
+        db.ForeignKey("trips.id"),
+        primary_key=True
+    )
+    text = db.Column(db.String(300), nullable=False)
+
+
 def guardar_viaje(conductor_id, origen, destino,
                   salida, puestos, aporte,
-                  vehiculo_id, paradas):
+                  vehiculo_id, paradas, observaciones=''):
+
+    observaciones = observaciones.strip()
+
+    if len(observaciones) > 300:
+        raise ValueError("Maximo 300 caracteres en las observaciones.")
 
     if not origen or not destino:
         raise ValueError("Origen y destino obligatorios.")
@@ -122,6 +138,12 @@ def guardar_viaje(conductor_id, origen, destino,
         )
 
         db.session.add(detalle)
+
+        if observaciones:
+            db.session.add(TripNote(
+                trip_id=viaje.id,
+                text=observaciones
+            ))
         viaje_id = viaje.id
         db.session.commit()
 
