@@ -61,3 +61,72 @@ def responder_reserva(conductor_id, solicitud_id, accion):
     except Exception:
         db.session.rollback()
         return False, "Error al procesar la solicitud."
+
+class TripDetails(db.Model):
+    __tablename__ = "conductor_trip_details"
+
+    trip_id = db.Column(
+        db.Integer,
+        db.ForeignKey("trips.id"),
+        primary_key=True
+    )
+    vehicle_id = db.Column(
+        db.Integer, nullable=False
+    )
+    stops = db.Column(
+        db.JSON, nullable=False, default=list
+    )
+
+
+def guardar_viaje(conductor_id, origen, destino,
+                  salida, puestos, aporte,
+                  vehiculo_id, paradas):
+
+    if not origen or not destino:
+        raise ValueError("Origen y destino obligatorios.")
+
+    if len(origen) > 120 or len(destino) > 120:
+        raise ValueError("Origen o destino demasiado largo.")
+
+    if salida <= datetime.now():
+        raise ValueError("La salida debe ser futura.")
+
+    if not 1 <= puestos <= 8:
+        raise ValueError("Cantidad de puestos no valida.")
+
+    if not 0 <= aporte <= 50000:
+        raise ValueError("Aporte no valido.")
+
+    if len(paradas) > 4:
+        raise ValueError("Maximo cuatro paradas.")
+
+    try:
+        viaje = Trip(
+            driver_id=conductor_id,
+            origin=origen,
+            destination=destino,
+            departure_time=salida,
+            seats_total=puestos,
+            seats_available=puestos,
+            price=aporte,
+            status="ABIERTO"
+        )
+
+        db.session.add(viaje)
+        db.session.flush()
+
+        detalle = TripDetails(
+            trip_id=viaje.id,
+            vehicle_id=vehiculo_id,
+            stops=paradas
+        )
+
+        db.session.add(detalle)
+        viaje_id = viaje.id
+        db.session.commit()
+
+        return viaje_id
+
+    except Exception:
+        db.session.rollback()
+        raise
