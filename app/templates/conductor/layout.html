@@ -6,6 +6,7 @@
      {% set active = "publicar" %}            <- opción activa del menú
      {% set page_title = "Publicar viaje" %}  <- texto del encabezado
      {% block content %} ... {% endblock %}
+     {% block scripts %} ... {% endblock %}   <- JavaScript propio (opcional)
 #}
 {% from "conductor/_icons.html" import icon %}
 {% from "conductor/_form.html" import csrf %}
@@ -30,6 +31,14 @@
     ("solicitudes", "Solicitudes",    "users",   url_for("conductor.solicitudes")),
     ("historial",   "Historial",      "history", url_for("conductor.historial")),
     ("mensajes",    "Mensajes",       "message", url_for("conductor.mensajes")),
+] %}
+
+{# Notificaciones de ejemplo. TODO (backend): reemplazar por las reales. #}
+{% set notificaciones = [
+    {"icono": "users",   "titulo": "Nueva solicitud",        "texto": "Valentina Rojas pidió 1 puesto en tu viaje a Campus USC.", "tiempo": "Hace 5 min",  "nueva": true},
+    {"icono": "message", "titulo": "Mensaje nuevo",          "texto": "Laura Mejía: Te espero en la portería.",                   "tiempo": "Hace 20 min", "nueva": true},
+    {"icono": "star",    "titulo": "Recibiste una reseña",   "texto": "Carlos Restrepo te calificó con 5 estrellas.",             "tiempo": "Ayer",        "nueva": false},
+    {"icono": "car",     "titulo": "Recordatorio de viaje",  "texto": "Mañana sales a las 7:10 a. m. desde Ciudad Jardín.",       "tiempo": "Ayer",        "nueva": false},
 ] %}
 
 <div class="app-shell">
@@ -100,10 +109,39 @@
 
             <div class="topbar-actions">
 
-                <button type="button" class="icon-btn" aria-label="Notificaciones">
-                    {{ icon("bell", 18) }}
-                    <span class="notification-dot"></span>
-                </button>
+                <!-- Notificaciones (datos falsos, solo diseño) -->
+                <details class="notif-menu">
+
+                    <summary class="icon-btn" aria-label="Notificaciones">
+                        {{ icon("bell", 18) }}
+                        {% if notificaciones | selectattr("nueva") | list %}
+                        <span class="notification-dot"></span>
+                        {% endif %}
+                    </summary>
+
+                    <div class="notif-panel">
+
+                        <div class="notif-header">
+                            <strong>Notificaciones</strong>
+                            <span>{{ notificaciones | selectattr("nueva") | list | length }} nuevas</span>
+                        </div>
+
+                        <ul class="notif-list">
+                            {% for n in notificaciones %}
+                            <li class="notif-item {% if n.nueva %}is-new{% endif %}">
+                                <span class="notif-icon">{{ icon(n.icono, 16) }}</span>
+                                <div class="notif-text">
+                                    <strong>{{ n.titulo }}</strong>
+                                    <p>{{ n.texto }}</p>
+                                    <small>{{ n.tiempo }}</small>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+
+                    </div>
+
+                </details>
 
                 <!-- Selector de perfil (lista desplegable) -->
                 <details class="role-menu">
@@ -149,14 +187,10 @@
     </div>
 
 </div>
-</div>
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% block scripts %}{% endblock %}
 
-</body>
-
-</html>
 </body>
 
 </html>

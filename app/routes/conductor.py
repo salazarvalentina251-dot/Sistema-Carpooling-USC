@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     request,
     session,
@@ -25,9 +26,14 @@ ROLES = [
     ("administrador", "Administrador"),
 ]
 
-# Perfiles que ya tienen pantallas hechas.
-# TODO (frontend): agregar "pasajero" y "administrador" cuando existan.
-ROLES_CON_PANTALLAS = {"conductor"}
+# A qué página lleva cada perfil al elegirlo en el desplegable.
+# El valor es el nombre de la ruta ("blueprint.función"). Si esa ruta no
+# existe en la aplicación, se muestra el aviso "estará disponible pronto".
+DESTINO_POR_ROL = {
+    "conductor": "conductor.inicio",
+    "pasajero": "passenger.inicio",
+    "administrador": "administrador.inicio",
+}
 
 MAX_PARADAS = 4
 APORTE_MAXIMO = 50000
@@ -210,13 +216,18 @@ def cambiar_perfil():
 
     if rol not in dict(ROLES):
         flash("Perfil no válido.", "error")
-    elif rol not in ROLES_CON_PANTALLAS:
-        flash(f"La vista de {dict(ROLES)[rol].lower()} estará disponible pronto.", "info")
-    else:
-        # TODO (backend): guardar el rol como "último rol usado" en User
-        session["rol"] = rol
+        return redirect(url_for("conductor.inicio"))
 
-    return redirect(url_for("conductor.inicio"))
+    destino = DESTINO_POR_ROL.get(rol)
+
+    # La ruta de destino solo se usa si existe en la aplicación
+    if destino not in current_app.view_functions:
+        flash(f"La vista de {dict(ROLES)[rol].lower()} estará disponible pronto.", "info")
+        return redirect(url_for("conductor.inicio"))
+
+    # TODO (backend): guardar el rol como "último rol usado" en User
+    session["rol"] = rol
+    return redirect(url_for(destino))
 
 
 # =========================================
