@@ -1,5 +1,9 @@
 from datetime import date, datetime, timedelta
-
+from app.routes.carpooling import Trip, Booking, Message
+from app.services.conductor_service import (
+    responder_reserva, Vehicle, TripDetails, registrar_vehiculo
+)
+from sqlalchemy.exc import SQLAlchemyError
 from flask import (
     Blueprint,
     current_app,
@@ -106,76 +110,164 @@ def fecha_valida(texto):
 # =========================================================
 
 def consultar_vehiculos():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
     hoy = date.today()
-    vehiculos = [
+
+    registros = Vehicle.query.filter_by(
+        conductor_id=conductor_id
+    ).order_by(Vehicle.id).all()
+
+    return [
         {
-            "id": 1,
-            "marca_modelo": "Mazda 3",
-            "color": "Gris",
-            "placa_visible": "KLM 248",
-            "capacidad": 4,
-            "soat_vence": hoy + timedelta(days=400),
-            "tecnomecanica_vence": hoy + timedelta(days=250),
-        },
+            "id": v.id,
+            "marca_modelo": v.marca_modelo,
+            "color": v.color,
+            "placa_visible": v.placa,
+            "capacidad": v.capacidad,
+            "soat_vence": v.soat_vence,
+            "tecnomecanica_vence": v.tecnomecanica_vence,
+            "soat_vencido": v.soat_vence < hoy,
+            "tecnomecanica_vencida": v.tecnomecanica_vence < hoy,
+            "habilitado": (
+                v.soat_vence >= hoy
+                and v.tecnomecanica_vence >= hoy
+            )
+        }
+        for v in registros
     ]
-    for v in vehiculos:
-        v["soat_vencido"] = v["soat_vence"] < hoy
-        v["tecnomecanica_vencida"] = v["tecnomecanica_vence"] < hoy
-        v["habilitado"] = not (v["soat_vencido"] or v["tecnomecanica_vencida"])
-    return vehiculos
 
 
 def consultar_solicitudes_pendientes():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    viaje = Trip.query.filter(
+        Trip.driver_id == conductor_id,
+        Trip.status == "ABIERTO",
+        Trip.departure_time > datetime.now()
+    ).order_by(Trip.departure_time, Trip.id).first()
+
+    if not viaje:
+        return []
+
+    reservas = Booking.query.filter_by(
+        trip_id=viaje.id,
+        status="PENDIENTE"
+    ).order_by(Booking.created_at).all()
+
     return [
-        {"id": 1, "pasajero": "Valentina Rojas", "calificacion": 4.9, "puestos": 1, "zona": "Ciudad Jardín", "verificado": True},
-        {"id": 2, "pasajero": "Nicolás Mora", "calificacion": 4.9, "puestos": 2, "zona": "Ciudad Jardín", "verificado": True},
-        {"id": 3, "pasajero": "Camila Torres", "calificacion": 4.7, "puestos": 3, "zona": "Ciudad Jardín", "verificado": False},
+        {
+            "id": reserva.id,
+            "pasajero": reserva.passenger.name,
+            "calificacion": 0.0,
+            "puestos": 1,
+            "zona": "No registrada",
+            "verificado": False
+        }
+        for reserva in reservas
     ]
 
 
+
 def consultar_proximo_viaje():
-    """Devuelve el próximo viaje del conductor o None si no tiene."""
-    salida = datetime.combine(date.today(), datetime.min.time()).replace(hour=7, minute=10)
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return None
+
+    viaje = Trip.query.filter(
+        Trip.driver_id == conductor_id,
+        Trip.status == "ABIERTO",
+        Trip.departure_time > datetime.now()
+    ).order_by(Trip.departure_time, Trip.id).first()
+
+    if not viaje:
+        return None
+
+    detalle = TripDetails.query.filter_by(
+        trip_id=viaje.id
+    ).first()
+
+    vehiculo = Vehicle.query.filter_by(
+        id=detalle.vehicle_id,
+        conductor_id=conductor_id
+    ).first() if detalle else None
+
     return {
-        "estado": "Abierto",
-        "origen": "Ciudad Jardín",
-        "destino": "Campus USC",
-        "salida": salida,
-        "vehiculo": "Mazda 3 gris",
-        "placa": "KLM 248",
-        "confirmados": 2,
-        "disponibles": 2,
-        "aporte": 5500,
+        "estado": viaje.status.capitalize(),
+        "origen": viaje.origin,
+        "destino": viaje.destination,
+        "salida": viaje.departure_time,
+        "vehiculo": vehiculo.marca_modelo if vehiculo else "No registrado",
+        "placa": vehiculo.placa if vehiculo else "No registrada",
+        "confirmados": viaje.seats_total - viaje.seats_available,
+        "disponibles": viaje.seats_available,
+        "aporte": viaje.price
     }
 
-
 def consultar_historial():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    reservas = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "COMPLETADA"
+    ).order_by(Trip.departure_time.desc()).all()
+
     return [
-        {"origen": "Campus USC", "destino": "Ciudad Jardín", "fecha": "10 may.", "pasajero": "Laura Mejía", "aporte": 5500, "calificacion": 5.0, "estado": "Completado"},
-        {"origen": "Valle del Lili", "destino": "Campus USC", "fecha": "8 may.", "pasajero": "Carlos Restrepo", "aporte": 4800, "calificacion": 4.8, "estado": "Completado"},
-        {"origen": "Campus USC", "destino": "San Fernando", "fecha": "3 may.", "pasajero": "Ana Lucía Pérez", "aporte": 4200, "calificacion": 5.0, "estado": "Completado"},
+        {
+            "origen": reserva.trip.origin,
+            "destino": reserva.trip.destination,
+            "fecha": reserva.trip.departure_time.strftime("%d/%m/%Y"),
+            "pasajero": reserva.passenger.name,
+            "aporte": reserva.trip.price,
+            "calificacion": reserva.rating or 0.0,
+            "estado": "Completado"
+        }
+        for reserva in reservas
     ]
 
 
 def consultar_conversaciones():
-    conversaciones = [
-        {
-            "id": 1, "nombre": "Laura Mejía", "en_linea": True,
-            "mensajes": [
-                {"propio": False, "texto": "Hola Sofía, te recojo en la entrada de Ciudad Jardín."},
-                {"propio": True, "texto": "Perfecto, estaré allí a las 7:05. Gracias."},
-            ],
-        },
-        {
-            "id": 2, "nombre": "Diego Arango", "en_linea": False,
-            "mensajes": [
-                {"propio": True, "texto": "Listo, quedamos para mañana."},
-                {"propio": False, "texto": "Gracias, nos vemos mañana"},
-            ],
-        },
-    ]
-    for c in conversaciones:
-        c["ultimo"] = c["mensajes"][-1]["texto"]
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    reservas = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "ACEPTADA"
+    ).order_by(Booking.id.desc()).all()
+
+    conversaciones = []
+
+    for reserva in reservas:
+        mensajes = [
+            {
+                "propio": mensaje.sender_id == conductor_id,
+                "texto": mensaje.text
+            }
+            for mensaje in reserva.messages.order_by(
+                Message.id
+            ).all()
+        ]
+
+        conversaciones.append({
+            "id": reserva.id,
+            "nombre": reserva.passenger.name,
+            "en_linea": False,
+            "mensajes": mensajes,
+            "ultimo": mensajes[-1]["texto"] if mensajes else "Sin mensajes"
+        })
+
     return conversaciones
 
 
@@ -242,15 +334,42 @@ def inicio():
 
     solicitudes = consultar_solicitudes_pendientes()
 
-    # TODO (backend): calcular estas cifras con consultas reales
+    conductor_id = session["user_id"]
+    ahora = datetime.now()
+
+    viajes = Trip.query.filter_by(
+        driver_id=conductor_id
+    ).all()
+
+    proximos = [
+        v for v in viajes
+        if v.status == "ABIERTO"
+        and v.departure_time > ahora
+    ]
+
+    opiniones = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "COMPLETADA",
+        Booking.rating.isnot(None)
+    ).all()
+
     estadisticas = {
-        "viajes_publicados": 12,
-        "viajes_este_mes": 2,
+        "viajes_publicados": len(viajes),
+        "viajes_este_mes": sum(
+            1 for v in viajes
+            if v.departure_time.month == ahora.month
+            and v.departure_time.year == ahora.year
+        ),
         "solicitudes_pendientes": len(solicitudes),
-        "puestos_disponibles": 5,
-        "proximos_viajes": 2,
-        "calificacion": 4.9,
-        "opiniones": 36,
+        "puestos_disponibles": sum(
+            v.seats_available for v in proximos
+        ),
+        "proximos_viajes": len(proximos),
+        "calificacion": (
+            sum(r.rating for r in opiniones) / len(opiniones)
+            if opiniones else 0.0
+        ),
+        "opiniones": len(opiniones)
     }
 
     return render_template(
@@ -312,9 +431,36 @@ def publicar_viaje():
             errores.append(f"El aporte debe ser un valor entre 0 y {APORTE_MAXIMO}.")
 
         if not errores:
-            # TODO (backend): guardar el viaje y sus paradas en la base de datos
-            flash("¡Tu viaje fue publicado correctamente!", "success")
-            return redirect(url_for("conductor.inicio"))
+            from app.services.conductor_service import guardar_viaje
+            from sqlalchemy.exc import SQLAlchemyError
+
+            try:
+                salida = datetime.fromisoformat(
+                    datos["fecha"] + "T" + datos["hora"]
+                )
+
+                guardar_viaje(
+                    session["user_id"],
+                    origen,
+                    destino,
+                    salida,
+                    int(puestos),
+                    int(aporte),
+                    vehiculo["id"],
+                    paradas,
+                    datos.get("observaciones", "")
+                )
+
+            except ValueError as error:
+                errores.append(str(error))
+
+            except SQLAlchemyError:
+                current_app.logger.exception("Error al publicar viaje")
+                errores.append("No se pudo guardar el viaje.")
+
+            else:
+                flash("Viaje publicado correctamente.", "success")
+                return redirect(url_for("conductor.inicio"))
 
     return render_template(
         "conductor/publicar.html",
@@ -352,20 +498,23 @@ def vehiculo_nuevo():
     if request.method == "POST":
         datos = request.form.to_dict()
 
-        for campo in ("marca_modelo", "color", "placa", "capacidad", "soat_vence", "tecnomecanica_vence"):
-            if not datos.get(campo, "").strip():
-                errores.append("Completa todos los campos.")
-                break
-
-        if not errores:
-            if not fecha_valida(datos["soat_vence"]) or not fecha_valida(datos["tecnomecanica_vence"]):
-                errores.append("Las fechas de vencimiento no son válidas.")
-            if not datos["capacidad"].isdigit() or not 1 <= int(datos["capacidad"]) <= 8:
-                errores.append("La capacidad debe estar entre 1 y 8 pasajeros.")
-
-        if not errores:
-            # TODO (backend): guardar el vehículo asociado al usuario en sesión
-            flash("Vehículo registrado correctamente.", "success")
+        try:
+            registrar_vehiculo(
+                session["user_id"],
+                datos.get("marca_modelo", ""),
+                datos.get("color", ""),
+                datos.get("placa", ""),
+                int(datos.get("capacidad", "")),
+                fecha_valida(datos.get("soat_vence")),
+                fecha_valida(datos.get("tecnomecanica_vence"))
+            )
+        except ValueError as error:
+            errores.append(str(error))
+        except SQLAlchemyError:
+            current_app.logger.exception("Error al registrar vehiculo")
+            errores.append("No se pudo registrar el vehiculo.")
+        else:
+            flash("Vehiculo registrado correctamente.", "success")
             return redirect(url_for("conductor.vehiculos"))
 
     return render_template("conductor/vehiculo_nuevo.html", datos=datos, errores=errores)
@@ -396,15 +545,14 @@ def responder_solicitud(solicitud_id):
 
     accion = request.form.get("accion")
 
-    if accion not in ("aceptar", "rechazar"):
-        flash("Acción no válida.", "error")
-        return redirect(url_for("conductor.solicitudes"))
+    exito, mensaje = responder_reserva(
+        session["user_id"],
+        solicitud_id,
+        accion
+    )
 
-    # TODO (backend): actualizar el estado de la solicitud (y los puestos
-    # disponibles del viaje si se acepta) en la base de datos.
-    flash("Solicitud aceptada." if accion == "aceptar" else "Solicitud rechazada.", "success")
+    flash(mensaje, "success" if exito else "error")
     return redirect(url_for("conductor.solicitudes"))
-
 
 # =========================================
 # HISTORIAL
@@ -440,19 +588,51 @@ def mensajes():
 
 @conductor_bp.route("/mensajes/enviar", methods=["POST"])
 def enviar_mensaje():
+    from app.extensions import db
+    from sqlalchemy.exc import SQLAlchemyError
+
     redireccion = requiere_sesion()
     if redireccion:
         return redireccion
 
+    conductor_id = session["user_id"]
     conversacion_id = request.form.get("conversacion_id", type=int)
+    texto = request.form.get("texto", "").strip()
 
-    # TODO (backend): guardar el mensaje en la base de datos
-    if not request.form.get("texto", "").strip():
-        flash("Escribe un mensaje antes de enviarlo.", "error")
+    reserva = Booking.query.join(Trip).filter(
+        Booking.id == conversacion_id,
+        Trip.driver_id == conductor_id,
+        Booking.status == "ACEPTADA"
+    ).first()
 
-    return redirect(url_for("conductor.mensajes", con=conversacion_id))
+    if not reserva:
+        flash("Conversación no autorizada.", "error")
+        return redirect(url_for("conductor.mensajes"))
 
+    if not texto or len(texto) > 500:
+        flash("Escribe un mensaje de 1 a 500 caracteres.", "error")
+        return redirect(url_for(
+            "conductor.mensajes", con=conversacion_id
+        ))
 
+    try:
+        mensaje = Message(
+            booking_id=reserva.id,
+            sender_id=conductor_id,
+            text=texto
+        )
+
+        db.session.add(mensaje)
+        db.session.commit()
+
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception("Error al guardar mensaje")
+        flash("No se pudo enviar el mensaje.", "error")
+
+    return redirect(url_for(
+        "conductor.mensajes", con=conversacion_id
+    ))
 # =========================================
 # CERRAR SESIÓN
 # =========================================
