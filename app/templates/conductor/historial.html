@@ -1,0 +1,41 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+
+{% set active = "historial" %}
+{% set page_title = "Historial" %}
+
+{% block content %}
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Actividad</span>
+        <h1>Historial de viajes</h1>
+        <p>Tus recorridos completados con la comunidad USC.</p>
+    </div>
+</section>
+
+{% if viajes %}
+<div class="history-list">
+    {% for v in viajes %}
+    <article class="history-row">
+
+        <span class="history-icon">{{ icon("history", 20) }}</span>
+
+        <div class="history-info">
+            <strong>{{ v.origen }} → {{ v.destino }}</strong>
+            <small>{{ v.fecha }} · {{ v.pasajero }}</small>
+        </div>
+
+        <div class="history-amount">
+            <strong>{{ v.aporte | pesos }}</strong>
+            <small>{{ icon("star", 11) }} {{ "%.1f" | format(v.calificacion) }} · {{ v.estado }}</small>
+        </div>
+
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<article class="panel empty-state">Aún no tienes viajes completados.</article>
+{% endif %}
+
+{% endblock %}

@@ -1,4 +1,3 @@
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 
 from app.extensions import db
@@ -88,7 +87,6 @@ def register():
     return render_template("auth/register.html")
 
 
-
 # =========================================
 # INICIO DE SESIÓN
 # =========================================
@@ -125,7 +123,7 @@ def login():
             session.permanent = request.form.get("recordarme") == "on"
 
             # Redirigir a la página principal
-            return redirect(url_for("home"))
+            return redirect(url_for("conductor.inicio"))
 
         else:
             flash("Correo o contraseña incorrectos.", "error")
@@ -133,4 +131,3 @@ def login():
 
     # Si es GET, mostrar el formulario
     return render_template("auth/login.html")
-

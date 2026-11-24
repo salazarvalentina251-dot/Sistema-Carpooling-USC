@@ -1,0 +1,153 @@
+{% extends "conductor/layout.html" %}
+{% from "conductor/_icons.html" import icon %}
+
+{% set active = "inicio" %}
+{% set page_title = "Inicio" %}
+
+{% block content %}
+
+<!-- TÍTULO Y ACCIÓN PRINCIPAL -->
+
+<section class="page-heading">
+
+    <div>
+        <h1>Listos para compartir ruta.</h1>
+        <p>Administra tus recorridos y solicitudes de pasajeros.</p>
+    </div>
+
+    <a href="{{ url_for('conductor.publicar_viaje') }}" class="btn-gold">
+        {{ icon("plus", 18) }}
+        Publicar viaje
+    </a>
+
+</section>
+
+
+<!-- TARJETAS DE ESTADÍSTICAS -->
+
+<section class="stats-grid">
+
+    <article class="stat-card">
+        <div class="stat-top">
+            <span>Viajes publicados</span>
+            <span class="stat-icon">{{ icon("car", 18) }}</span>
+        </div>
+        <strong class="stat-value">{{ estadisticas.viajes_publicados }}</strong>
+        <small>+{{ estadisticas.viajes_este_mes }} este mes</small>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-top">
+            <span>Solicitudes pendientes</span>
+            <span class="stat-icon">{{ icon("users", 18) }}</span>
+        </div>
+        <strong class="stat-value">{{ estadisticas.solicitudes_pendientes }}</strong>
+        <small>Requieren respuesta</small>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-top">
+            <span>Puestos disponibles</span>
+            <span class="stat-icon">{{ icon("ticket", 18) }}</span>
+        </div>
+        <strong class="stat-value">{{ estadisticas.puestos_disponibles }}</strong>
+        <small>En {{ estadisticas.proximos_viajes }} próximos viajes</small>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-top">
+            <span>Calificación</span>
+            <span class="stat-icon">{{ icon("star", 18) }}</span>
+        </div>
+        <strong class="stat-value">{{ "%.1f" | format(estadisticas.calificacion) }}</strong>
+        <small>{{ estadisticas.opiniones }} opiniones</small>
+    </article>
+
+</section>
+
+
+<!-- PRÓXIMO VIAJE + SOLICITUDES RECIENTES -->
+
+<section class="dashboard-grid">
+
+    <!-- Próximo viaje -->
+    <article class="panel">
+
+        <header class="panel-header">
+            <h2>Próximo viaje</h2>
+            {% if proximo_viaje %}
+            <span class="badge">{{ proximo_viaje.estado }}</span>
+            {% endif %}
+        </header>
+
+        {% if proximo_viaje %}
+
+        <div class="trip">
+            <span class="trip-icon">{{ icon("car", 26) }}</span>
+
+            <div class="trip-info">
+                <h3>{{ proximo_viaje.origen }} → {{ proximo_viaje.destino }}</h3>
+                <p>
+                    {{ proximo_viaje.salida | cuando }} · {{ proximo_viaje.vehiculo }} · {{ proximo_viaje.placa }}
+                </p>
+            </div>
+        </div>
+
+        <div class="trip-stats">
+            <div>
+                <strong>{{ proximo_viaje.confirmados }}</strong>
+                <small>CONFIRMADOS</small>
+            </div>
+            <div>
+                <strong>{{ proximo_viaje.disponibles }}</strong>
+                <small>DISPONIBLES</small>
+            </div>
+            <div>
+                <strong>{{ proximo_viaje.aporte | pesos }}</strong>
+                <small>APORTE</small>
+            </div>
+        </div>
+
+        {% else %}
+
+        <p class="empty-state">
+            No tienes viajes próximos. <a class="link-gold" href="{{ url_for('conductor.publicar_viaje') }}">Publica uno</a>
+        </p>
+
+        {% endif %}
+
+    </article>
+
+    <!-- Solicitudes recientes -->
+    <article class="panel">
+
+        <header class="panel-header">
+            <h2>Solicitudes recientes</h2>
+            <a href="{{ url_for('conductor.solicitudes') }}" class="link-gold">Ver todas</a>
+        </header>
+
+        <ul class="request-list">
+            {% for solicitud in solicitudes_recientes %}
+            <li class="request-item">
+                <span class="avatar">{{ solicitud.pasajero | iniciales }}</span>
+
+                <div class="request-info">
+                    <strong>{{ solicitud.pasajero }}</strong>
+                    <small>
+                        {{ solicitud.puestos }} {{ "puesto" if solicitud.puestos == 1 else "puestos" }}
+                        · {{ solicitud.zona }}
+                    </small>
+                </div>
+
+                <a href="{{ url_for('conductor.solicitudes') }}" class="btn-review">Revisar</a>
+            </li>
+            {% else %}
+            <li class="empty-state">No tienes solicitudes pendientes.</li>
+            {% endfor %}
+        </ul>
+
+    </article>
+
+</section>
+
+{% endblock %}
