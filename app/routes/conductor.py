@@ -188,32 +188,62 @@ def consultar_proximo_viaje():
     }
 
 def consultar_historial():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    reservas = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "COMPLETADA"
+    ).order_by(Trip.departure_time.desc()).all()
+
     return [
-        {"origen": "Campus USC", "destino": "Ciudad Jardín", "fecha": "10 may.", "pasajero": "Laura Mejía", "aporte": 5500, "calificacion": 5.0, "estado": "Completado"},
-        {"origen": "Valle del Lili", "destino": "Campus USC", "fecha": "8 may.", "pasajero": "Carlos Restrepo", "aporte": 4800, "calificacion": 4.8, "estado": "Completado"},
-        {"origen": "Campus USC", "destino": "San Fernando", "fecha": "3 may.", "pasajero": "Ana Lucía Pérez", "aporte": 4200, "calificacion": 5.0, "estado": "Completado"},
+        {
+            "origen": reserva.trip.origin,
+            "destino": reserva.trip.destination,
+            "fecha": reserva.trip.departure_time.strftime("%d/%m/%Y"),
+            "pasajero": reserva.passenger.name,
+            "aporte": reserva.trip.price,
+            "calificacion": reserva.rating or 0.0,
+            "estado": "Completado"
+        }
+        for reserva in reservas
     ]
 
 
 def consultar_conversaciones():
-    conversaciones = [
-        {
-            "id": 1, "nombre": "Laura Mejía", "en_linea": True,
-            "mensajes": [
-                {"propio": False, "texto": "Hola Sofía, te recojo en la entrada de Ciudad Jardín."},
-                {"propio": True, "texto": "Perfecto, estaré allí a las 7:05. Gracias."},
-            ],
-        },
-        {
-            "id": 2, "nombre": "Diego Arango", "en_linea": False,
-            "mensajes": [
-                {"propio": True, "texto": "Listo, quedamos para mañana."},
-                {"propio": False, "texto": "Gracias, nos vemos mañana"},
-            ],
-        },
-    ]
-    for c in conversaciones:
-        c["ultimo"] = c["mensajes"][-1]["texto"]
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    reservas = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "ACEPTADA"
+    ).order_by(Booking.id.desc()).all()
+
+    conversaciones = []
+
+    for reserva in reservas:
+        mensajes = [
+            {
+                "propio": mensaje.sender_id == conductor_id,
+                "texto": mensaje.text
+            }
+            for mensaje in reserva.messages.order_by(
+                Message.id
+            ).all()
+        ]
+
+        conversaciones.append({
+            "id": reserva.id,
+            "nombre": reserva.passenger.name,
+            "en_linea": False,
+            "mensajes": mensajes,
+            "ultimo": mensajes[-1]["texto"] if mensajes else "Sin mensajes"
+        })
+
     return conversaciones
 
 
@@ -477,19 +507,51 @@ def mensajes():
 
 @conductor_bp.route("/mensajes/enviar", methods=["POST"])
 def enviar_mensaje():
+    from app.extensions import db
+    from sqlalchemy.exc import SQLAlchemyError
+
     redireccion = requiere_sesion()
     if redireccion:
         return redireccion
 
+    conductor_id = session["user_id"]
     conversacion_id = request.form.get("conversacion_id", type=int)
+    texto = request.form.get("texto", "").strip()
 
-    # TODO (backend): guardar el mensaje en la base de datos
-    if not request.form.get("texto", "").strip():
-        flash("Escribe un mensaje antes de enviarlo.", "error")
+    reserva = Booking.query.join(Trip).filter(
+        Booking.id == conversacion_id,
+        Trip.driver_id == conductor_id,
+        Booking.status == "ACEPTADA"
+    ).first()
 
-    return redirect(url_for("conductor.mensajes", con=conversacion_id))
+    if not reserva:
+        flash("Conversación no autorizada.", "error")
+        return redirect(url_for("conductor.mensajes"))
 
+    if not texto or len(texto) > 500:
+        flash("Escribe un mensaje de 1 a 500 caracteres.", "error")
+        return redirect(url_for(
+            "conductor.mensajes", con=conversacion_id
+        ))
 
+    try:
+        mensaje = Message(
+            booking_id=reserva.id,
+            sender_id=conductor_id,
+            text=texto
+        )
+
+        db.session.add(mensaje)
+        db.session.commit()
+
+    except SQLAlchemyError:
+        db.session.rollback()
+        current_app.logger.exception("Error al guardar mensaje")
+        flash("No se pudo enviar el mensaje.", "error")
+
+    return redirect(url_for(
+        "conductor.mensajes", con=conversacion_id
+    ))
 # =========================================
 # CERRAR SESIÓN
 # =========================================
