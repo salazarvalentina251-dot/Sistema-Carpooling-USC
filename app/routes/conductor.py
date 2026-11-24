@@ -1,6 +1,9 @@
 from datetime import date, datetime, timedelta
 from app.routes.carpooling import Trip, Booking, Message
-from app.services.conductor_service import responder_reserva
+from app.services.conductor_service import (
+    responder_reserva, Vehicle, TripDetails, registrar_vehiculo
+)
+from sqlalchemy.exc import SQLAlchemyError
 from flask import (
     Blueprint,
     current_app,
@@ -107,23 +110,35 @@ def fecha_valida(texto):
 # =========================================================
 
 def consultar_vehiculos():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
     hoy = date.today()
-    vehiculos = [
+
+    registros = Vehicle.query.filter_by(
+        conductor_id=conductor_id
+    ).order_by(Vehicle.id).all()
+
+    return [
         {
-            "id": 1,
-            "marca_modelo": "Mazda 3",
-            "color": "Gris",
-            "placa_visible": "KLM 248",
-            "capacidad": 4,
-            "soat_vence": hoy + timedelta(days=400),
-            "tecnomecanica_vence": hoy + timedelta(days=250),
-        },
+            "id": v.id,
+            "marca_modelo": v.marca_modelo,
+            "color": v.color,
+            "placa_visible": v.placa,
+            "capacidad": v.capacidad,
+            "soat_vence": v.soat_vence,
+            "tecnomecanica_vence": v.tecnomecanica_vence,
+            "soat_vencido": v.soat_vence < hoy,
+            "tecnomecanica_vencida": v.tecnomecanica_vence < hoy,
+            "habilitado": (
+                v.soat_vence >= hoy
+                and v.tecnomecanica_vence >= hoy
+            )
+        }
+        for v in registros
     ]
-    for v in vehiculos:
-        v["soat_vencido"] = v["soat_vence"] < hoy
-        v["tecnomecanica_vencida"] = v["tecnomecanica_vence"] < hoy
-        v["habilitado"] = not (v["soat_vencido"] or v["tecnomecanica_vencida"])
-    return vehiculos
 
 
 def consultar_solicitudes_pendientes():
@@ -175,13 +190,22 @@ def consultar_proximo_viaje():
     if not viaje:
         return None
 
+    detalle = TripDetails.query.filter_by(
+        trip_id=viaje.id
+    ).first()
+
+    vehiculo = Vehicle.query.filter_by(
+        id=detalle.vehicle_id,
+        conductor_id=conductor_id
+    ).first() if detalle else None
+
     return {
         "estado": viaje.status.capitalize(),
         "origen": viaje.origin,
         "destino": viaje.destination,
         "salida": viaje.departure_time,
-        "vehiculo": "No registrado",
-        "placa": "No registrada",
+        "vehiculo": vehiculo.marca_modelo if vehiculo else "No registrado",
+        "placa": vehiculo.placa if vehiculo else "No registrada",
         "confirmados": viaje.seats_total - viaje.seats_available,
         "disponibles": viaje.seats_available,
         "aporte": viaje.price
@@ -366,7 +390,7 @@ def publicar_viaje():
     if redireccion:
         return redireccion
 
-    vehiculos = []  # Pendiente de integracion
+    vehiculos = consultar_vehiculos()
     datos, errores = {}, []
 
     if request.method == "POST":
@@ -474,20 +498,23 @@ def vehiculo_nuevo():
     if request.method == "POST":
         datos = request.form.to_dict()
 
-        for campo in ("marca_modelo", "color", "placa", "capacidad", "soat_vence", "tecnomecanica_vence"):
-            if not datos.get(campo, "").strip():
-                errores.append("Completa todos los campos.")
-                break
-
-        if not errores:
-            if not fecha_valida(datos["soat_vence"]) or not fecha_valida(datos["tecnomecanica_vence"]):
-                errores.append("Las fechas de vencimiento no son válidas.")
-            if not datos["capacidad"].isdigit() or not 1 <= int(datos["capacidad"]) <= 8:
-                errores.append("La capacidad debe estar entre 1 y 8 pasajeros.")
-
-        if not errores:
-            # TODO (backend): guardar el vehículo asociado al usuario en sesión
-            flash("Vehículo registrado correctamente.", "success")
+        try:
+            registrar_vehiculo(
+                session["user_id"],
+                datos.get("marca_modelo", ""),
+                datos.get("color", ""),
+                datos.get("placa", ""),
+                int(datos.get("capacidad", "")),
+                fecha_valida(datos.get("soat_vence")),
+                fecha_valida(datos.get("tecnomecanica_vence"))
+            )
+        except ValueError as error:
+            errores.append(str(error))
+        except SQLAlchemyError:
+            current_app.logger.exception("Error al registrar vehiculo")
+            errores.append("No se pudo registrar el vehiculo.")
+        else:
+            flash("Vehiculo registrado correctamente.", "success")
             return redirect(url_for("conductor.vehiculos"))
 
     return render_template("conductor/vehiculo_nuevo.html", datos=datos, errores=errores)

@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date
+from sqlalchemy.exc import IntegrityError
+from app.models.user import User
 from app.extensions import db
 from app.routes.carpooling import Booking, Trip
 
@@ -62,6 +64,72 @@ def responder_reserva(conductor_id, solicitud_id, accion):
         db.session.rollback()
         return False, "Error al procesar la solicitud."
 
+class Vehicle(db.Model):
+    _tablename_ = "conductor_vehicles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    conductor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+    marca_modelo = db.Column(db.String(40), nullable=False)
+    color = db.Column(db.String(30), nullable=False)
+    placa = db.Column(db.String(7), unique=True, nullable=False)
+    capacidad = db.Column(db.Integer, nullable=False)
+    soat_vence = db.Column(db.Date, nullable=False)
+    tecnomecanica_vence = db.Column(db.Date, nullable=False)
+
+
+def registrar_vehiculo(conductor_id, marca_modelo, color,
+                       placa, capacidad, soat, tecnomecanica):
+
+    usuario = db.session.get(User, conductor_id)
+    if not usuario or not usuario.is_active:
+        raise ValueError("Usuario no habilitado.")
+
+    marca_modelo = marca_modelo.strip()
+    color = color.strip()
+    placa = "".join(placa.upper().split())
+
+    if not marca_modelo or len(marca_modelo) > 40:
+        raise ValueError("Marca y modelo invalidos.")
+
+    if not color or len(color) > 30:
+        raise ValueError("Color invalido.")
+
+    if not placa.isascii() or not placa.isalnum() or len(placa) > 7:
+        raise ValueError("Placa invalida.")
+
+    if not 1 <= capacidad <= 8:
+        raise ValueError("Capacidad invalida.")
+
+    if not soat or not tecnomecanica:
+        raise ValueError("Fechas de documentos invalidas.")
+
+    vehiculo = Vehicle(
+        conductor_id=conductor_id,
+        marca_modelo=marca_modelo,
+        color=color,
+        placa=placa,
+        capacidad=capacidad,
+        soat_vence=soat,
+        tecnomecanica_vence=tecnomecanica
+    )
+
+    try:
+        db.session.add(vehiculo)
+        db.session.commit()
+        return vehiculo.id
+    except IntegrityError as error:
+        db.session.rollback()
+        raise ValueError("La placa ya esta registrada.") from error
+    except Exception:
+        db.session.rollback()
+        raise
+
+
 class TripDetails(db.Model):
     __tablename__ = "conductor_trip_details"
 
@@ -92,6 +160,21 @@ class TripNote(db.Model):
 def guardar_viaje(conductor_id, origen, destino,
                   salida, puestos, aporte,
                   vehiculo_id, paradas, observaciones=''):
+
+    vehiculo = Vehicle.query.filter_by(
+        id=vehiculo_id,
+        conductor_id=conductor_id
+    ).first()
+
+    if not vehiculo:
+        raise ValueError("El vehiculo no pertenece al conductor.")
+
+    if (vehiculo.soat_vence < salida.date()
+            or vehiculo.tecnomecanica_vence < salida.date()):
+        raise ValueError("Documentos vencidos para la fecha del viaje.")
+
+    if puestos > vehiculo.capacidad:
+        raise ValueError("La capacidad del vehiculo fue superada.")
 
     observaciones = observaciones.strip()
 
