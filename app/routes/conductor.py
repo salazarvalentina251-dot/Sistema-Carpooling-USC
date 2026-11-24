@@ -366,7 +366,7 @@ def publicar_viaje():
     if redireccion:
         return redireccion
 
-    vehiculos = consultar_vehiculos()
+    vehiculos = []  # Pendiente de integracion
     datos, errores = {}, []
 
     if request.method == "POST":
@@ -407,9 +407,35 @@ def publicar_viaje():
             errores.append(f"El aporte debe ser un valor entre 0 y {APORTE_MAXIMO}.")
 
         if not errores:
-            # TODO (backend): guardar el viaje y sus paradas en la base de datos
-            flash("¡Tu viaje fue publicado correctamente!", "success")
-            return redirect(url_for("conductor.inicio"))
+            from app.services.conductor_service import guardar_viaje
+            from sqlalchemy.exc import SQLAlchemyError
+
+            try:
+                salida = datetime.fromisoformat(
+                    datos["fecha"] + "T" + datos["hora"]
+                )
+
+                guardar_viaje(
+                    session["user_id"],
+                    origen,
+                    destino,
+                    salida,
+                    int(puestos),
+                    int(aporte),
+                    vehiculo["id"],
+                    paradas
+                )
+
+            except ValueError as error:
+                errores.append(str(error))
+
+            except SQLAlchemyError:
+                current_app.logger.exception("Error al publicar viaje")
+                errores.append("No se pudo guardar el viaje.")
+
+            else:
+                flash("Viaje publicado correctamente.", "success")
+                return redirect(url_for("conductor.inicio"))
 
     return render_template(
         "conductor/publicar.html",
