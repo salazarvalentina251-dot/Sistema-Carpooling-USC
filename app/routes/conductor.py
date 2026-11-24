@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
-
+from app.routes.carpooling import Trip, Booking, Message
+from app.services.conductor_service import responder_reserva
 from flask import (
     Blueprint,
     current_app,
@@ -126,28 +127,65 @@ def consultar_vehiculos():
 
 
 def consultar_solicitudes_pendientes():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return []
+
+    viaje = Trip.query.filter(
+        Trip.driver_id == conductor_id,
+        Trip.status == "ABIERTO",
+        Trip.departure_time > datetime.now()
+    ).order_by(Trip.departure_time, Trip.id).first()
+
+    if not viaje:
+        return []
+
+    reservas = Booking.query.filter_by(
+        trip_id=viaje.id,
+        status="PENDIENTE"
+    ).order_by(Booking.created_at).all()
+
     return [
-        {"id": 1, "pasajero": "Valentina Rojas", "calificacion": 4.9, "puestos": 1, "zona": "Ciudad Jardín", "verificado": True},
-        {"id": 2, "pasajero": "Nicolás Mora", "calificacion": 4.9, "puestos": 2, "zona": "Ciudad Jardín", "verificado": True},
-        {"id": 3, "pasajero": "Camila Torres", "calificacion": 4.7, "puestos": 3, "zona": "Ciudad Jardín", "verificado": False},
+        {
+            "id": reserva.id,
+            "pasajero": reserva.passenger.name,
+            "calificacion": 0.0,
+            "puestos": 1,
+            "zona": "No registrada",
+            "verificado": False
+        }
+        for reserva in reservas
     ]
 
 
-def consultar_proximo_viaje():
-    """Devuelve el próximo viaje del conductor o None si no tiene."""
-    salida = datetime.combine(date.today(), datetime.min.time()).replace(hour=7, minute=10)
-    return {
-        "estado": "Abierto",
-        "origen": "Ciudad Jardín",
-        "destino": "Campus USC",
-        "salida": salida,
-        "vehiculo": "Mazda 3 gris",
-        "placa": "KLM 248",
-        "confirmados": 2,
-        "disponibles": 2,
-        "aporte": 5500,
-    }
 
+def consultar_proximo_viaje():
+    conductor_id = session.get("user_id")
+
+    if not conductor_id:
+        return None
+
+    viaje = Trip.query.filter(
+        Trip.driver_id == conductor_id,
+        Trip.status == "ABIERTO",
+        Trip.departure_time > datetime.now()
+    ).order_by(Trip.departure_time, Trip.id).first()
+
+    if not viaje:
+        return None
+
+    return {
+        "estado": viaje.status.capitalize(),
+        "origen": viaje.origin,
+        "destino": viaje.destination,
+        "salida": viaje.departure_time,
+        "vehiculo": "No registrado",
+        "placa": "No registrada",
+        "confirmados": viaje.seats_total - viaje.seats_available,
+        "disponibles": viaje.seats_available,
+        "aporte": viaje.price
+    }
 
 def consultar_historial():
     return [
@@ -396,15 +434,14 @@ def responder_solicitud(solicitud_id):
 
     accion = request.form.get("accion")
 
-    if accion not in ("aceptar", "rechazar"):
-        flash("Acción no válida.", "error")
-        return redirect(url_for("conductor.solicitudes"))
+    exito, mensaje = responder_reserva(
+        session["user_id"],
+        solicitud_id,
+        accion
+    )
 
-    # TODO (backend): actualizar el estado de la solicitud (y los puestos
-    # disponibles del viaje si se acepta) en la base de datos.
-    flash("Solicitud aceptada." if accion == "aceptar" else "Solicitud rechazada.", "success")
+    flash(mensaje, "success" if exito else "error")
     return redirect(url_for("conductor.solicitudes"))
-
 
 # =========================================
 # HISTORIAL
