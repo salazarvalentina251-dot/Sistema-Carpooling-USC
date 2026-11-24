@@ -310,15 +310,42 @@ def inicio():
 
     solicitudes = consultar_solicitudes_pendientes()
 
-    # TODO (backend): calcular estas cifras con consultas reales
+    conductor_id = session["user_id"]
+    ahora = datetime.now()
+
+    viajes = Trip.query.filter_by(
+        driver_id=conductor_id
+    ).all()
+
+    proximos = [
+        v for v in viajes
+        if v.status == "ABIERTO"
+        and v.departure_time > ahora
+    ]
+
+    opiniones = Booking.query.join(Trip).filter(
+        Trip.driver_id == conductor_id,
+        Booking.status == "COMPLETADA",
+        Booking.rating.isnot(None)
+    ).all()
+
     estadisticas = {
-        "viajes_publicados": 12,
-        "viajes_este_mes": 2,
+        "viajes_publicados": len(viajes),
+        "viajes_este_mes": sum(
+            1 for v in viajes
+            if v.departure_time.month == ahora.month
+            and v.departure_time.year == ahora.year
+        ),
         "solicitudes_pendientes": len(solicitudes),
-        "puestos_disponibles": 5,
-        "proximos_viajes": 2,
-        "calificacion": 4.9,
-        "opiniones": 36,
+        "puestos_disponibles": sum(
+            v.seats_available for v in proximos
+        ),
+        "proximos_viajes": len(proximos),
+        "calificacion": (
+            sum(r.rating for r in opiniones) / len(opiniones)
+            if opiniones else 0.0
+        ),
+        "opiniones": len(opiniones)
     }
 
     return render_template(
