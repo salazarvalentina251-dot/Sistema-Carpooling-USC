@@ -40,96 +40,14 @@ El proyecto está organizado mediante una estructura modular que separa las resp
 
 ---
 
-## Instalación y configuración del proyecto
 
-Para ejecutar Carpooling USC en tu computador, sigue estos pasos:
-
-### 1. Requisitos previos
-
-Antes de comenzar, debes tener instalado:
-
-- Python 3.14 o compatible con las dependencias del proyecto.
-- Visual Studio Code.
-- Git.
-
-### 2. Clonar el repositorio
-
-Abre una terminal y ejecuta:
-
-```bash
-git clone https://github.com/salazarvalentina251-dot/Sistema-Carpooling-USC.git
 ```
 
-Ingresa a la carpeta del proyecto:
-
-```bash
-cd Sistema-Carpooling-USC
-```
-
-### 3. Crear el entorno virtual
-
-```bash
-python -m venv venv
-```
-
-Activar el entorno virtual en Windows PowerShell:
-
-```powershell
-.\venv\Scripts\Activate.ps1
-```
-
-### 4. Instalar las dependencias
-
-Con el entorno virtual activado, ejecuta:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-Este comando instala automáticamente las librerías necesarias para ejecutar el proyecto.
-
-### 5. Configurar las variables de entorno
-
-Verifica que exista el archivo `.env` y configura las variables necesarias si el proyecto las requiere. No compartas claves secretas ni contraseñas personales.
-
-### 6. Ejecutar la aplicación
-
-Desde la terminal, ejecuta:
-
-```bash
-python run.py
-```
-
-Abre el navegador e ingresa a:
+Abrimos en  el navegador e ingresa a:
 
 http://127.0.0.1:5000
 
----
-
-## Base de datos
-
-Carpooling USC utiliza **SQLite** como sistema de gestión de base de datos.
-
-El archivo de base de datos se llama:
-
-```text
-carpooling.db
-```
-
-Este archivo se genera localmente al iniciar la aplicación con la configuración actual de Flask-SQLAlchemy.
-
-### Visualizar la base de datos desde Visual Studio Code
-
-Para consultar las tablas y los registros de SQLite:
-
-1. Abre Visual Studio Code.
-2. Ingresa a la sección de extensiones.
-3. Busca **SQLite Viewer**.
-4. Instala la extensión.
-5. Abre el archivo `carpooling.db`.
-6. Utiliza el visor para explorar las tablas y los registros almacenados.
-
-**Importante:** cada integrante debe generar su propia base de datos local al ejecutar el proyecto. El archivo `carpooling.db` no necesita compartirse en el repositorio.
+-
 
 ---
 
