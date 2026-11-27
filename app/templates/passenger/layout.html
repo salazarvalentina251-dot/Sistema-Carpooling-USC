@@ -4,11 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Pasajero{% endblock %} | Carpooling USC</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/passenger.css') }}">
 </head>
 <body>
+
+{# Perfiles del desplegable. "rol_actual" marca el perfil en el que estás. #}
+{% set roles = [("pasajero", "Pasajero"), ("conductor", "Conductor"), ("administrador", "Administrador")] %}
+{% set rol_actual = "pasajero" %}
+
+{# Notificaciones de ejemplo. TODO (backend): reemplazar por las reales. #}
+{% set notificaciones = [
+    {"icono": "reservas",  "titulo": "Reserva aceptada",     "texto": "Laura Mejía aceptó tu solicitud para hoy a las 7:10 a. m.", "tiempo": "Hace 5 min",  "nueva": true},
+    {"icono": "mensajes",  "titulo": "Mensaje nuevo",        "texto": "Laura Mejía: Te espero en la portería.",                    "tiempo": "Hace 20 min", "nueva": true},
+    {"icono": "inicio",    "titulo": "Recordatorio de viaje", "texto": "Mañana sales a las 7:25 a. m. desde Valle del Lili.",       "tiempo": "Ayer",        "nueva": false},
+    {"icono": "historial", "titulo": "Califica tu viaje",    "texto": "¿Cómo te fue con Carlos Restrepo el 8 de mayo?",            "tiempo": "Hace 2 días", "nueva": false},
+] %}
+
 <div class="app">
 
     <aside class="sidebar">
@@ -53,15 +64,73 @@
                 <p class="crumb">PASAJERO</p>
                 <p class="crumb-page">{{ page_title }}</p>
             </div>
+
             <div class="topbar-right">
-                <button class="bell" aria-label="Notificaciones"><span class="dot"></span>🔔</button>
-                <div class="user-chip">
-                    <span class="avatar blue">{{ user.initials }}</span>
-                    <div>
-                        <strong>{{ user.name }}</strong>
-                        <small>Pasajera</small>
+
+                <!-- Notificaciones (datos falsos, solo diseño) -->
+                <details class="notif-menu">
+
+                    <summary class="bell" aria-label="Notificaciones">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                        </svg>
+                        {% if notificaciones | selectattr("nueva") | list %}<span class="dot"></span>{% endif %}
+                    </summary>
+
+                    <div class="notif-panel">
+                        <div class="notif-header">
+                            <strong>Notificaciones</strong>
+                            <span>{{ notificaciones | selectattr("nueva") | list | length }} nuevas</span>
+                        </div>
+
+                        <ul class="notif-list">
+                            {% for n in notificaciones %}
+                            <li class="notif-item {% if n.nueva %}is-new{% endif %}">
+                                <span class="notif-icon">{% include 'passenger/icons/' ~ n.icono ~ '.svg' %}</span>
+                                <div class="notif-text">
+                                    <strong>{{ n.titulo }}</strong>
+                                    <p>{{ n.texto }}</p>
+                                    <small>{{ n.tiempo }}</small>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                </div>
+
+                </details>
+
+                <!-- Selector de perfil (lista desplegable) -->
+                <details class="role-menu">
+
+                    <summary class="user-chip" aria-label="Cambiar de perfil">
+                        <span class="avatar blue">{{ user.initials }}</span>
+                        <div>
+                            <strong>{{ user.name }}</strong>
+                            <small>Pasajero</small>
+                        </div>
+                        <span class="chevron">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                        </span>
+                    </summary>
+
+                    {# El cambio de perfil lo procesa la ruta del conductor #}
+                    <form class="role-menu-list" action="{{ url_for('conductor.cambiar_perfil') }}" method="post">
+                        <span class="role-menu-title">CAMBIAR PERFIL</span>
+
+                        {% for clave, etiqueta in roles %}
+                        <button type="submit" name="rol" value="{{ clave }}"
+                                class="role-option {% if clave == rol_actual %}is-current{% endif %}">
+                            {{ etiqueta }}
+                        </button>
+                        {% endfor %}
+                    </form>
+
+                </details>
+
             </div>
         </header>
 
@@ -70,6 +139,9 @@
         </main>
     </div>
 </div>
+
+{# Cierra los desplegables al hacer clic afuera o con Escape #}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

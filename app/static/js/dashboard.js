@@ -5,24 +5,39 @@
 (function () {
     "use strict";
 
-    // Menú de perfil: se cierra al hacer clic fuera o al presionar Escape
-    function cerrarMenus() {
-        document.querySelectorAll("details.role-menu[open]").forEach(function (menu) {
-            menu.removeAttribute("open");
+    var SELECTOR_MENUS = "details.role-menu, details.notif-menu";
+
+    // Cierra todos los menús desplegables (perfil y notificaciones)
+    function cerrarMenus(excepto) {
+        document.querySelectorAll(SELECTOR_MENUS).forEach(function (menu) {
+            if (menu !== excepto) {
+                menu.removeAttribute("open");
+            }
         });
     }
 
+    // Al abrir un menú, se cierra el otro
+    document.querySelectorAll(SELECTOR_MENUS).forEach(function (menu) {
+        menu.addEventListener("toggle", function () {
+            if (menu.open) {
+                cerrarMenus(menu);
+            }
+        });
+    });
+
+    // Clic fuera de un menú: se cierra
     document.addEventListener("click", function (evento) {
-        document.querySelectorAll("details.role-menu[open]").forEach(function (menu) {
+        document.querySelectorAll(SELECTOR_MENUS).forEach(function (menu) {
             if (!menu.contains(evento.target)) {
                 menu.removeAttribute("open");
             }
         });
     });
 
+    // Tecla Escape: se cierran
     document.addEventListener("keydown", function (evento) {
         if (evento.key === "Escape") {
-            cerrarMenus();
+            cerrarMenus(null);
         }
     });
 
