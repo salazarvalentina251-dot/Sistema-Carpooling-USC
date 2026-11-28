@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from app.routes.carpooling import Trip, Booking, Message
+from app.models.carpooling import Trip, Booking, Message
 from app.services.conductor_service import (
     responder_reserva, Vehicle, TripDetails, registrar_vehiculo
 )
