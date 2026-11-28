@@ -1,0 +1,47 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Detalle de reserva{% endblock %}
+
+{% block content %}
+<p class="eyebrow">TU RESERVA</p>
+<h1 class="display">{{ r.route }}</h1>
+<p class="muted">{{ r.when }}</p>
+
+<section class="card" style="margin-top:22px; max-width:560px">
+    <div class="card-row">
+        <span class="badge">{{ r.estado }}</span>
+        <strong class="gold">{{ r.price }}</strong>
+    </div>
+
+    <div class="trip-top" style="margin-top:18px">
+        <span class="avatar {{ r.color }}">{{ r.initials }}</span>
+        <div class="grow">
+            <strong>{{ r.driver }}</strong>
+            <small>★ {{ r.rating }} · Conductor</small>
+        </div>
+    </div>
+
+    <div class="trip-body">
+        <p>Salida: {{ r.when }}</p>
+        <small>{{ r.seats }} disponibles en este viaje</small>
+    </div>
+
+    <div class="actions">
+        {% if r.aceptada %}
+            <button type="button" class="btn-gold grow btn-codigo" data-id="{{ r.id }}">Ver código de abordaje</button>
+            <a class="btn-outline" href="{{ url_for('passenger.mensajes', reserva=r.id) }}">Mensajes</a>
+        {% endif %}
+        {% if r.cancelable %}
+        <form method="post" action="{{ url_for('passenger.cancelar', booking_id=r.id) }}"
+              onsubmit="return confirm('¿Cancelar esta reserva?')">
+            <button type="submit" class="btn-text-danger">Cancelar</button>
+        </form>
+        {% endif %}
+    </div>
+</section>
+
+<p style="margin-top:18px"><a class="link-gold" href="{{ url_for('passenger.reservas') }}">← Volver a mis reservas</a></p>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/passenger.js') }}"></script>
+{% endblock %}
