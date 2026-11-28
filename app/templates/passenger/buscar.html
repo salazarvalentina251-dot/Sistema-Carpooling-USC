@@ -1,0 +1,48 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Buscar viajes{% endblock %}
+
+{% block content %}
+<p class="eyebrow">EXPLORA</p>
+<h1 class="display">Buscar viajes</h1>
+<p class="muted">Viajes de la comunidad USC que coinciden con tu ruta.</p>
+
+<form class="search-bar" action="{{ url_for('passenger.buscar') }}" method="get">
+    <label class="field"><small>ORIGEN</small>
+        <input type="text" name="origen" value="{{ filtros.origen }}" placeholder="Ciudad Jardín, Cali"></label>
+    <label class="field"><small>DESTINO</small>
+        <input type="text" name="destino" value="{{ filtros.destino }}" placeholder="Universidad Santiago de Cali"></label>
+    <label class="field narrow"><small>FECHA</small>
+        <input type="text" name="fecha" value="{{ filtros.fecha }}" placeholder="Hoy"></label>
+    <label class="field narrow"><small>HORA</small>
+        <input type="text" name="hora" value="{{ filtros.hora }}" placeholder="7:00 a. m."></label>
+    <button type="submit" class="btn-gold">Buscar</button>
+</form>
+
+<div class="cards-2">
+    {% for v in viajes %}
+    <article class="card">
+        <div class="trip-top">
+            <span class="avatar {{ v.color }}">{{ v.initials }}</span>
+            <div class="grow">
+                <strong>{{ v.driver }}</strong>
+                <small>★ {{ v.rating }} · Verificada</small>
+            </div>
+            <div class="price"><strong>{{ v.price }}</strong><small>aporte</small></div>
+        </div>
+        <h3>{{ v.route }}</h3>
+        <p class="muted small">{{ v.time }} · {{ v.seats }}</p>
+        <div class="actions">
+            {% if v.reservado %}
+                <button class="btn-outline grow" disabled>Solicitud enviada</button>
+            {% else %}
+                <form method="post" action="{{ url_for('passenger.reservar', trip_id=v.id) }}" class="grow" style="display:flex">
+                    <button type="submit" class="btn-gold grow">Solicitar puesto</button>
+                </form>
+            {% endif %}
+        </div>
+    </article>
+    {% else %}
+    <p class="muted empty">No encontramos viajes con esos filtros. Prueba con otra hora o fecha.</p>
+    {% endfor %}
+</div>
+{% endblock %}
