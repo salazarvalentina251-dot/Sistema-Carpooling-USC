@@ -2,7 +2,7 @@ from datetime import datetime, date
 from sqlalchemy.exc import IntegrityError
 from app.models.user import User
 from app.extensions import db
-from app.routes.carpooling import Booking, Trip
+from app.models.carpooling import Booking, Trip
 
 
 def responder_reserva(conductor_id, solicitud_id, accion):
