@@ -1,0 +1,44 @@
+{% extends "passenger/layout.html" %}
+{% block title %}Mensajes{% endblock %}
+
+{% block content %}
+<p class="eyebrow">COMUNIDAD</p>
+<h1 class="display">Mensajes</h1>
+<p class="muted">Conversaciones asociadas a tus reservas aceptadas.</p>
+
+{% if conversaciones %}
+<section class="chat">
+    <aside class="chat-list">
+        <small class="chat-title">CONVERSACIONES ACTIVAS</small>
+        {% for c in conversaciones %}
+        <button type="button" class="chat-item {% if c.id == reserva_activa %}active{% endif %}"
+                data-id="{{ c.id }}" data-name="{{ c.name }}">
+            <span class="avatar blue">{{ c.initials }}</span>
+            <span><strong>{{ c.name }}</strong><small>{{ c.preview }}</small></span>
+        </button>
+        {% endfor %}
+    </aside>
+
+    <div class="chat-main">
+        <div class="chat-head"><strong id="chat-name">{{ nombre_activo }}</strong></div>
+        <div class="chat-body" id="chat-body"
+             data-reserva="{{ reserva_activa or '' }}"
+             data-ultimo="{{ mensajes[-1].id if mensajes else 0 }}">
+            {% for m in mensajes %}
+            <div class="bubble {{ 'mine' if m.mine else 'theirs' }}">{{ m.text }}</div>
+            {% endfor %}
+        </div>
+        <form class="chat-form" id="chat-form">
+            <input type="text" id="chat-input" placeholder="Escribe un mensaje..." autocomplete="off" maxlength="500">
+            <button type="submit" class="btn-gold" aria-label="Enviar">→</button>
+        </form>
+    </div>
+</section>
+{% else %}
+<p class="muted empty">Aún no tienes conversaciones. Se habilitan cuando un conductor acepta tu solicitud.</p>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/passenger.js') }}"></script>
+{% endblock %}
